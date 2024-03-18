@@ -2,12 +2,41 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define NIOS2_READ_STATUS(dest) \
+	do { dest = __builtin_rdctl(0); } while (0)
+	
+#define NIOS2_WRITE_STATUS(src) \
+	do { __builtin_wrctl(0, src); } while (0)
+	
+#define NIOS2_READ_ESTATUS(dest) \
+	do { dest = __builtin_rdctl(1); } while (0)
+	
+#define NIOS2_READ_BSTATUS(dest) \
+	do { dest = __builtin_rdctl(2); } while (0)
+	
+#define NIOS2_READ_IENABLE(dest) \
+	do { dest = __builtin_rdctl(3); } while (0)
+	
+#define NIOS2_WRITE_IENABLE(src) \
+	do { __builtin_wrctl(3, src); } while (0)
+	
+#define NIOS2_READ_IPENDING(dest) \
+	do { dest = __builtin_rdctl(4); } while (0)
+	
+#define NIOS2_READ_CPUID(dest) \
+	do { dest = __builtin_rdctl(5); } while (0)
+
 // Function initialization
 void wait_for_vsync();
 void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
 void draw();
 void draw_icon(short int image[]);
+
+
+void the_exception(void) __attribute__((section(".exceptions")));
+void pushbutton_ISR(void);
+void interrupt_handler(void);
 
 void clear_char_buffer();
 void plot_char(int x, int y, uint8_t letter);
@@ -37,7 +66,11 @@ short file_icon[]  = {
 
 int main(void)
 {
-	struct sigaction sa;
+	volatile int * KEY_ptr = (int *)0xff200050; 
+	*(KEY_ptr + 2) = 0xffff;
+	NIOS2_WRITE_IENABLE(0x2);
+	NIOS2_WRITE_STATUS(1);	
+	
 	
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
     // declare other variables(not shown)
@@ -59,18 +92,9 @@ int main(void)
 	
     while (1)
     {
-
-		delete++;
-		if(delete%10 == 0){
-			draw_icon(file_icon);
-			/*wait_for_vsync();
-			pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-			draw_icon(file_icon);*/
-		}
-
-        wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+        //wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 		
-        pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+        //pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
 
 	volatile int * char_ctrl_ptr = (int *)0xFF203030;
@@ -151,6 +175,105 @@ void clear_screen(){
 			plot_pixel(x,y,0);
 		}
 	}
+}
+
+void interrupt_handler(void) {
+	int ipending;
+	NIOS2_READ_IPENDING(ipending);
+	if (ipending & 0x2){
+		pushbutton_ISR();
+	}
+	// else, ignore the interrupt
+	return;
+}
+
+void pushbutton_ISR(void) {
+	volatile int * KEY_ptr = (int *)0xff200050;
+	volatile int * LED_ptr = (int *)0xff200000;
+	int press;
+	press = *(KEY_ptr + 3); // read the pushbutton interrupt register
+	*(KEY_ptr + 3) = 0b1111; // Clear the interrupt
+	
+	*(LED_ptr) = press;
+	draw_icon(file_icon);
+	
+	return;
+}
+
+void the_exception(void){
+	asm("subi sp, sp, 128");
+	asm("stw et, 96(sp)");
+	asm("rdctl et, ctl4");
+	asm("beq et, r0, SKIP_EA_DEC"); // Interrupt is not external
+	asm("subi ea, ea, 4"); 
+	asm("SKIP_EA_DEC:");
+	asm("stw r1, 4(sp)"); // Save all registers
+	asm("stw r2, 8(sp)");
+	asm("stw r3, 12(sp)");
+	asm("stw r4, 16(sp)");
+	asm("stw r5, 20(sp)");
+	asm("stw r6, 24(sp)");
+	asm("stw r7, 28(sp)");
+	asm("stw r8, 32(sp)");
+	asm("stw r9, 36(sp)");
+	asm("stw r10, 40(sp)");
+	asm("stw r11, 44(sp)");
+	asm("stw r12, 48(sp)");
+	asm("stw r13, 52(sp)");
+	asm("stw r14, 56(sp)");
+	asm("stw r15, 60(sp)");
+	asm("stw r16, 64(sp)");
+	asm("stw r17, 68(sp)");
+	asm("stw r18, 72(sp)");
+	asm("stw r19, 76(sp)");
+	asm("stw r20, 80(sp)");
+	asm("stw r21, 84(sp)");
+	asm("stw r22, 88(sp)");
+	asm("stw r23, 92(sp)");
+	asm("stw r25, 100(sp)"); // r25 = bt (skip r24 = et, because it is saved
+	// above)
+	asm("stw r26, 104(sp)"); // r26 = gp
+	// skip r27 because it is sp, and there is no point in saving this
+	asm("stw r28, 112(sp)"); // r28 = fp
+	asm("stw r29, 116(sp)"); // r29 = ea
+	asm("stw r30, 120(sp)"); // r30 = ba
+	asm("stw r31, 124(sp)"); // r31 = ra
+	asm("addi fp, sp, 128");
+	asm("call interrupt_handler"); // Call the C language interrupt handler
+	asm("ldw r1, 4(sp)"); // Restore all registers
+	asm("ldw r2, 8(sp)");
+	asm("ldw r3, 12(sp)");
+	asm("ldw r4, 16(sp)");
+	asm("ldw r5, 20(sp)");
+	asm("ldw r6, 24(sp)");
+	asm("ldw r7, 28(sp)");
+	asm("ldw r8, 32(sp)");
+	asm("ldw r9, 36(sp)");
+	asm("ldw r10, 40(sp)");
+	asm("ldw r11, 44(sp)");
+	asm("ldw r12, 48(sp)");
+	asm("ldw r13, 52(sp)");
+	asm("ldw r14, 56(sp)");
+	asm("ldw r15, 60(sp)");
+	asm("ldw r16, 64(sp)");
+	asm("ldw r17, 68(sp)");
+	asm("ldw r18, 72(sp)");
+	asm("ldw r19, 76(sp)");
+	asm("ldw r20, 80(sp)");
+	asm("ldw r21, 84(sp)");
+	asm("ldw r22, 88(sp)");
+	asm("ldw r23, 92(sp)");
+	asm("ldw r24, 96(sp)");
+	asm("ldw r25, 100(sp)"); // r25 = bt
+	asm("ldw r26, 104(sp)"); // r26 = gp
+	// skip r27 because it is sp, and we did not save this on the stack
+	asm("ldw r28, 112(sp)"); // r28 = fp
+	asm("ldw r29, 116(sp)"); // r29 = ea
+	asm("ldw r30, 120(sp)"); // r30 = ba
+	asm("ldw r31, 124(sp)"); // r31 = ra
+	asm("addi sp, sp, 128");
+	asm("eret");
+
 }
 
 void clear_char_buffer(){
