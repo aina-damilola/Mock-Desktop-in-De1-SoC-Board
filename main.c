@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
-#include <signal.h>
+#include <stdint.h>
 
 // Function initialization
 void wait_for_vsync();
@@ -9,9 +9,14 @@ void plot_pixel(int x, int y, short int line_color);
 void draw();
 void draw_icon(short int image[]);
 
+void clear_char_buffer();
+void plot_char(int x, int y, uint8_t letter);
+
 //Global variables
 volatile int pixel_buffer_start;
 volatile int push_buttons = 0xFF200050;
+
+volatile int char_buffer_start; // global variable
 
 // Global arrays
 short int Buffer1[240][512]; // 240 rows, 512 (320 + padding) columns
@@ -67,6 +72,17 @@ int main(void)
 		
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
+
+	volatile int * char_ctrl_ptr = (int *)0xFF203030;
+	char_buffer_start = *char_ctrl_ptr;
+
+	clear_char_buffer();
+	plot_char(0,0, 72);
+	plot_char(1,0, 69);
+	plot_char(2,0, 76);
+	plot_char(3,0, 76);
+	plot_char(4,0, 79);
+
 	return 0;
 }
 
@@ -135,4 +151,23 @@ void clear_screen(){
 			plot_pixel(x,y,0);
 		}
 	}
+}
+
+void clear_char_buffer(){
+	for (int x=0; x<80; x++){
+		for (int y=0; y<60; y++){
+			volatile uint8_t *one_char_address;
+			one_char_address = char_buffer_start + (y << 7) + x;
+			*one_char_address = 0;
+		}
+	}
+}
+
+void plot_char(int x, int y, uint8_t letter)
+{
+    volatile uint8_t *one_char_address;
+
+    one_char_address = char_buffer_start + (y << 7) + x;
+
+    *one_char_address = letter;
 }
