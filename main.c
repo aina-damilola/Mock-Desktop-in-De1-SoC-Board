@@ -2,6 +2,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define FILE_SIZE_HEIGHT = 25;
+#define FILE_SIZE_WIDTH = 20;
+
 #define NIOS2_READ_STATUS(dest) \
 	do { dest = __builtin_rdctl(0); } while (0)
 	
@@ -32,6 +35,7 @@ void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
 void draw();
 void draw_icon(short int image[]);
+void delete_icon(short int image[]);
 
 
 void the_exception(void) __attribute__((section(".exceptions")));
@@ -50,9 +54,12 @@ volatile int char_buffer_start; // global variable
 // Global arrays
 short int Buffer1[240][512]; // 240 rows, 512 (320 + padding) columns
 short int Buffer2[240][512];
+short int Icons[11][8] = {0};
+
+// Global Variables
 int num_of_drawn = 0;
-int initial_y = 20;
-int initial_x = 20;
+int initial_y = 25;
+int initial_x = 25;
 int delete = 0;
 bool check = false;
 
@@ -67,7 +74,7 @@ short file_icon[]  = {
 int main(void)
 {
 	volatile int * KEY_ptr = (int *)0xff200050; 
-	*(KEY_ptr + 2) = 0xffff;
+	*(KEY_ptr + 2) = 0b0011;
 	NIOS2_WRITE_IENABLE(0x2);
 	NIOS2_WRITE_STATUS(1);	
 	
@@ -113,6 +120,8 @@ int main(void)
 void draw_icon(short int image[]){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
+
+
 	if(initial_x >= 25*11){return;}
 	
 	for(int y = initial_y; y < initial_y +15; y++){
@@ -129,13 +138,53 @@ void draw_icon(short int image[]){
 		draw_icon(file_icon);
 		return;
 	}
-	if(initial_y >= 25*7){
-		initial_y = 20;
+	Icons[initial_x/25][initial_y/25] = 1;
+	if(initial_y > 25*7){
+		initial_y = 25;
 		initial_x += 25;
 	}else{
 		initial_y += 25;
+
 	}
 	
+	
+	check = !check;
+}
+
+void delete_icon(short int image[]){
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	int count = 0;
+	
+
+	
+	if(!check){
+		if(initial_x == 25 && initial_y == 25){return;}
+		if(initial_y == 25){
+			initial_y = (25*8);
+			initial_x -= 25;
+		}else{
+			initial_y -= 25;
+		}
+	}
+	
+	count = initial_y  + (initial_x*240);
+	
+	for(int y = initial_y; y < initial_y +15; y++){
+		for(int x = initial_x; x < initial_x +15; x++){
+			plot_pixel(x, y, background[count]);
+			count++;
+		}
+		count += 240;
+	}
+	if(!check){
+		check = !check;
+		wait_for_vsync();
+		pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+		delete_icon(file_icon);
+		return;
+	}
+	
+	Icons[initial_x/25][initial_y/25] = 0;
 	check = !check;
 }
 
@@ -192,10 +241,15 @@ void pushbutton_ISR(void) {
 	volatile int * LED_ptr = (int *)0xff200000;
 	int press;
 	press = *(KEY_ptr + 3); // read the pushbutton interrupt register
-	*(KEY_ptr + 3) = 0b1111; // Clear the interrupt
-	
+	*(KEY_ptr + 3) = press; // Clear the interrupt
 	*(LED_ptr) = press;
-	draw_icon(file_icon);
+	check = false;
+	if(press == 0x1){
+		draw_icon(file_icon);
+	}
+	else if(press == 0x2){
+		delete_icon(file_icon);
+	}
 	
 	return;
 }
