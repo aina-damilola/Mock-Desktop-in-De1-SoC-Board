@@ -36,7 +36,8 @@ void plot_pixel(int x, int y, short int line_color);
 void draw();
 void draw_icon(short int image[]);
 void delete_icon(short int image[]);
-
+void HEX_PS2(int, int, int);
+void draw_cursor(int, int, int);
 
 void the_exception(void) __attribute__((section(".exceptions")));
 void pushbutton_ISR(void);
@@ -60,6 +61,9 @@ short int Icons[11][8] = {0};
 int num_of_drawn = 0;
 int initial_y = 25;
 int initial_x = 25;
+int mouse_data;
+int mouse_x = 100;
+int mouse_y = 100;
 
 bool check = false;
 
@@ -71,14 +75,17 @@ short file_icon[]  = {
   0x0000, 0x08c6, 0x2148, 0x4a8c, 0x4aac, 0x4aac, 0x4aac, 0x4aac, 0x3a2b, 0x10e6, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x10e6, 0x94f5, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xa597, 0x32ac, 0x1906, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xa597, 0x6d96, 0x436f, 0x10e6, 0x0000, 0x0000, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xb619, 0x4bd0, 0x769a, 0x438f, 0x10e6, 0x0000, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xd71c, 0x4aac, 0x29ca, 0x29ca, 0x2989, 0x10e6, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xd6fc, 0xc67a, 0xc67a, 0xa597, 0x10c6, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xbe39, 0x10c6, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xdf1d, 0xdf1c, 0xdf1d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xbe39, 0x10c6, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xb5f9, 0x4aac, 0x4aad, 0xa597, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xbe39, 0x10c6, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xadd8, 0x320a, 0x320a, 0x320a, 0x320a, 0x320a, 0xadd8, 0xdf3d, 0xbe39, 0x10c6, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xd6fc, 0xb619, 0xb619, 0xb619, 0xb619, 0xb619, 0xd6fc, 0xdf3d, 0xbe39, 0x10c6, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xbe39, 0x5b2f, 0x5b2f, 0x5b2f, 0x5b2f, 0x5b2f, 0xbe39, 0xdf3d, 0xbe39, 0x10c6, 0x0000, 0x0000, 0x10e6, 0xbe39, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xdf3d, 0xbe39, 0x10c6, 0x0000, 0x0000, 0x10e6, 0x94f5, 0xdf1d, 0xdf1d, 0xdf1d, 0xdf1d, 0xdf1d, 0xdf1d, 0xdf1d, 0xdf1d, 0xdf1c, 0x94f5, 0x10e6, 0x0000, 0x0000, 0x08c6, 0x2148, 0x4aac, 0x4aac, 0x4aac, 0x4aac, 0x4aac, 0x4aac, 0x4aac, 0x4aac, 0x4aac, 0x1948, 0x08c5, 0x0000
 };
 
+
 int main(void)
 {
 	volatile int * KEY_ptr = (int *)0xff200050; 
+	volatile int * PS2_ptr = (int *)0xff200100;
 	*(KEY_ptr + 2) = 0b0011;
 	NIOS2_WRITE_IENABLE(0x2);
 	NIOS2_WRITE_STATUS(1);	
 	
-	
+	int PS2_data, RVALID, RAVAIL;
+	int byte1 = 0, byte2 = 0, byte3 = 0;
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
     // declare other variables(not shown)
     // initialize location and direction of rectangles(not shown)
@@ -97,11 +104,32 @@ int main(void)
      // pixel_buffer_start points to the pixel buffer
 	draw();
 	
+	*(PS2_ptr) = 0xFF;
+	mouse_data = 0;
     while (1)
     {
-        //wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 		
-        //pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+		PS2_data = *(PS2_ptr); // read the Data register in the PS/2 port
+		RVALID = PS2_data & 0x8000; // extract the RVALID field
+		//RAVAIL = PS2_data & 0xffff0000; // extract RAVAIL field
+		if (RVALID) {
+			/* shift the next data byte into the display */
+			
+			byte1 = byte2;
+			byte2 = byte3;
+			byte3 = PS2_data & 0xFF;
+			mouse_data++;
+			if ((byte2 == (int)0xAA) && (byte3 == (int)0x00))
+				// mouse inserted; initialize sending of data
+				*(PS2_ptr) = 0xF4;
+				
+			if(mouse_data == 1){
+				mouse_data = 0;
+				HEX_PS2(byte1, byte2, byte3);
+				draw_cursor(byte1, byte2, byte3);
+			}
+			
+		}
     }
 
 	volatile int * char_ctrl_ptr = (int *)0xFF203030;
@@ -116,7 +144,10 @@ int main(void)
 
 	return 0;
 }
-
+void draw_cursor(int misc, int xpos, int ypos){
+	plot_pixel(xpos,ypos, 0x0);
+	
+}
 void draw_icon(short int image[]){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
@@ -346,4 +377,31 @@ void plot_char(int x, int y, uint8_t letter)
     one_char_address = char_buffer_start + (y << 7) + x;
 
     *one_char_address = letter;
+}
+
+
+
+void HEX_PS2(int b1, int b2, int b3) {
+	volatile int * HEX3_HEX0_ptr = (int *)0xff200020;
+	volatile int * HEX5_HEX4_ptr = (int *)0xff200030;
+	/* SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in
+	* a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F
+	*/
+	unsigned char seven_seg_decode_table[] = {
+	0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
+	0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
+	unsigned char hex_segs[] = {0, 0, 0, 0, 0, 0, 0, 0};
+	unsigned int shift_buffer, nibble;
+	unsigned char code;
+	int i;
+	shift_buffer = (b1 << 16) | (b2 << 8) | b3;
+	for (i = 0; i < 6; ++i) {
+		nibble = shift_buffer & 0x0000000F; // character is in rightmost nibble
+		code = seven_seg_decode_table[nibble];
+		hex_segs[i] = code;
+		shift_buffer = shift_buffer >> 4;
+	}
+	/* drive the hex displays */
+	*(HEX3_HEX0_ptr) = *(int *)(hex_segs);
+	*(HEX5_HEX4_ptr) = *(int *)(hex_segs + 4);
 }
