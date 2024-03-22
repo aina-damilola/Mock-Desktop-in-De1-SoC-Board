@@ -60,7 +60,7 @@ short int Icons[11][8] = {0};
 int num_of_drawn = 0;
 int initial_y = 25;
 int initial_x = 25;
-int delete = 0;
+
 bool check = false;
 
 const short background[]  = {
@@ -166,15 +166,14 @@ void delete_icon(short int image[]){
 			initial_y -= 25;
 		}
 	}
-	
-	count = initial_y  + (initial_x*240);
-	
+	count = ((initial_y-1) * 320) + initial_x - 1;
 	for(int y = initial_y; y < initial_y +15; y++){
 		for(int x = initial_x; x < initial_x +15; x++){
-			plot_pixel(x, y, background[count]);
 			count++;
+			plot_pixel(x, y, background[count]);
+			
 		}
-		count += 240;
+		count += 320;
 	}
 	if(!check){
 		check = !check;
