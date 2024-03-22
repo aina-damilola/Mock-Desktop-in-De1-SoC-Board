@@ -36,8 +36,8 @@ void plot_pixel(int x, int y, short int line_color);
 void draw();
 void draw_icon(short int image[]);
 void delete_icon(short int image[]);
-void HEX_PS2(int, int, int);
-void draw_cursor(int, int, int);
+void HEX_PS2(char, int, int);
+void draw_cursor(char, int, int);
 
 void the_exception(void) __attribute__((section(".exceptions")));
 void pushbutton_ISR(void);
@@ -62,8 +62,8 @@ int num_of_drawn = 0;
 int initial_y = 25;
 int initial_x = 25;
 int mouse_data;
-int mouse_x = 100;
-int mouse_y = 100;
+int mouse_x = 50;
+int mouse_y = 50;
 
 bool check = false;
 
@@ -85,7 +85,8 @@ int main(void)
 	NIOS2_WRITE_STATUS(1);	
 	
 	int PS2_data, RVALID, RAVAIL;
-	int byte1 = 0, byte2 = 0, byte3 = 0;
+	char byte1 = 0;
+	int byte2 = 0, byte3 = 0;
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
     // declare other variables(not shown)
     // initialize location and direction of rectangles(not shown)
@@ -103,11 +104,13 @@ int main(void)
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
      // pixel_buffer_start points to the pixel buffer
 	draw();
-	
+							wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 	*(PS2_ptr) = 0xFF;
 	mouse_data = 0;
     while (1)
     {
+
 		
 		PS2_data = *(PS2_ptr); // read the Data register in the PS/2 port
 		RVALID = PS2_data & 0x8000; // extract the RVALID field
@@ -126,7 +129,9 @@ int main(void)
 			if(mouse_data == 1){
 				mouse_data = 0;
 				HEX_PS2(byte1, byte2, byte3);
+				
 				draw_cursor(byte1, byte2, byte3);
+
 			}
 			
 		}
@@ -144,8 +149,41 @@ int main(void)
 
 	return 0;
 }
-void draw_cursor(int misc, int xpos, int ypos){
-	plot_pixel(xpos,ypos, 0x0);
+void draw_cursor(char misc, int xpos, int ypos){
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	int radius = 5;
+	
+
+	if(misc && 0b01 == 0b01){	// negaitve x
+		mouse_x += (256 - xpos);
+	}
+	else{
+		mouse_x += (xpos);
+	}
+	if(misc && 0b10 == 0b10){ // negative y
+		mouse_y += (256 - ypos);
+	}
+	else{
+		mouse_y += (ypos);
+	}
+
+	
+	for(int x = -radius; x <= radius; x++){
+		for(int y = -radius; y <= radius; y++){
+			plot_pixel(mouse_x+x,mouse_y+y, 60000);
+		}
+	}
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	
+	for(int x = -radius; x <= radius; x++){
+		for(int y = -radius; y <= radius; y++){
+			plot_pixel(mouse_x+x,mouse_y+y, 60000);
+		}
+	}
+	
+				wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 	
 }
 void draw_icon(short int image[]){
@@ -381,7 +419,7 @@ void plot_char(int x, int y, uint8_t letter)
 
 
 
-void HEX_PS2(int b1, int b2, int b3) {
+void HEX_PS2(char b1, int b2, int b3) {
 	volatile int * HEX3_HEX0_ptr = (int *)0xff200020;
 	volatile int * HEX5_HEX4_ptr = (int *)0xff200030;
 	/* SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in
