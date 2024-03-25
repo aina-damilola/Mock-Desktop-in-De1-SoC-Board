@@ -104,7 +104,18 @@ int main(void)
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
      // pixel_buffer_start points to the pixel buffer
 	draw();
-							wait_for_vsync();
+	wait_for_vsync();
+
+	volatile int * char_ctrl_ptr = (int *)0xFF203030;
+	char_buffer_start = *char_ctrl_ptr;
+
+	clear_char_buffer();
+	plot_char(0,0, 72);
+	plot_char(1,0, 69);
+	plot_char(2,0, 76);
+	plot_char(3,0, 76);
+	plot_char(4,0, 79);
+
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 	*(PS2_ptr) = 0xFF;
 	mouse_data = 0;
@@ -137,15 +148,8 @@ int main(void)
 		}
     }
 
-	volatile int * char_ctrl_ptr = (int *)0xFF203030;
-	char_buffer_start = *char_ctrl_ptr;
-
-	clear_char_buffer();
-	plot_char(0,0, 72);
-	plot_char(1,0, 69);
-	plot_char(2,0, 76);
-	plot_char(3,0, 76);
-	plot_char(4,0, 79);
+	
+	
 
 	return 0;
 }
