@@ -82,8 +82,8 @@ int og_count = 0;
 
 int xpos = 25;
 int ypos = 25;
-int xpos_2 = 39;
-int ypos_2 = 39;
+int xpos_2 = 40;
+int ypos_2 = 40;
 
 bool check = false;
 bool move_outline_bar = true;
@@ -424,7 +424,27 @@ void draw_text_editor(){
 		for(int y = 20; y < 200; y++){
 			prev[count] = save_pixel(x, y);
 			count++;
-			plot_pixel(x, y, 0b1111111111011111);
+			if(x < 22 || x > 247 || y < 30 || y > 197){
+				plot_pixel(x, y, 0b0111101111001111);
+			}
+			else{
+				plot_pixel(x, y, 0b1111111111011111);
+			}
+			if(y > 22 && y < 28){
+				if(x < 245 && x > 240){
+					plot_pixel(x, y, 0b1111100000000000);
+				}
+			}
+			if(y > 22 && y < 28){
+				if(x < 235 && x > 230){
+					plot_pixel(x, y, 0b11111000000);
+				}
+			}
+			if(y > 22 && y < 28){
+				if(x < 225 && x > 220){
+					plot_pixel(x, y, 0b11111);
+				}
+			}
 		}
 	}
 	wait_for_vsync();
@@ -432,9 +452,28 @@ void draw_text_editor(){
 	count = 0;
 	for(int x = 20; x < 250; x++){
 		for(int y = 20; y < 200; y++){
-			prev[count] = save_pixel(x, y);
 			count++;
-			plot_pixel(x, y, 0b1111111111011111);
+			if(x < 22 || x > 247 || y < 30 || y > 197){
+				plot_pixel(x, y, 0b0111101111001111);
+			}
+			else{
+				plot_pixel(x, y, 0b1111111111011111);
+			}
+			if(y > 22 && y < 28){
+				if(x < 245 && x > 240){
+					plot_pixel(x, y, 0b1111100000000000);
+				}
+			}
+			if(y > 22 && y < 28){
+				if(x < 235 && x > 230){
+					plot_pixel(x, y, 0b11111000000);
+				}
+			}
+			if(y > 22 && y < 28){
+				if(x < 225 && x > 220){
+					plot_pixel(x, y, 0b11111);
+				}
+			}
 		}
 	}
 	wait_for_vsync();
@@ -491,7 +530,7 @@ void move_outline(int b1, int b2, int b3){
 				if(xpos < (25*10)){
 					if(Icons[(xpos+25)/25][1].file_presence == 1){
 						ypos = 25;
-						ypos_2 = 39;
+						ypos_2 = 40;
 						xpos += 25;
 						xpos_2 += 25;
 					}
@@ -516,7 +555,7 @@ void move_outline(int b1, int b2, int b3){
 				if(xpos > 25){
 					if(Icons[xpos/25][8].file_presence == 1){
 						ypos = 25*8;
-						ypos_2 = 14+(25*8);
+						ypos_2 = 15+(25*8);
 						xpos -= 25;
 						xpos_2 -= 25;
 					}
@@ -557,7 +596,6 @@ void move_outline(int b1, int b2, int b3){
 			move_outline_bar = false;
 		}
 	}
-	
 }
 
 void delete_square(int xpos, int ypos, int xpos_2, int ypos_2){
@@ -565,21 +603,21 @@ void delete_square(int xpos, int ypos, int xpos_2, int ypos_2){
 	int count = xpos + (320*ypos);
 	for(int x = xpos; x < xpos_2; x++){
 		plot_pixel(x, ypos, background[count + (x-xpos)]);
-		plot_pixel(x, ypos_2, background[count + (x-xpos) + (14*320)]);
+		plot_pixel(x, ypos_2, background[count + (x-xpos) + (15*320)]);
 	}
 	for(int y = ypos; y < ypos_2; y++){
 		plot_pixel(xpos, y, background[count + ((y-ypos)*320)]);
-		plot_pixel(xpos_2, y, background[count + ((y-ypos)*320) + 14]);
+		plot_pixel(xpos_2, y, background[count + ((y-ypos)*320) + 15]);
 	}
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 	for(int x = xpos; x < xpos_2; x++){
 		plot_pixel(x, ypos, background[count + (x-xpos)]);
-		plot_pixel(x, ypos_2, background[count + (x-xpos) + (14*320)]);
+		plot_pixel(x, ypos_2, background[count + (x-xpos) + (15*320)]);
 	}
 	for(int y = ypos; y < ypos_2; y++){
 		plot_pixel(xpos, y, background[count + ((y-ypos)*320)]);
-		plot_pixel(xpos_2, y, background[count + ((y-ypos)*320) + 14]);
+		plot_pixel(xpos_2, y, background[count + ((y-ypos)*320) + 15]);
 	}
 
 	
@@ -749,8 +787,8 @@ void pushbutton_ISR(void) {
 			delete_square(xpos, ypos, xpos_2,  ypos_2);
 			xpos = 25;
 			ypos = 25;
-			xpos_2 = 39;
-			ypos_2 = 39;
+			xpos_2 = 40;
+			ypos_2 = 40;
 			draw_square(xpos, ypos, xpos_2,  ypos_2);
 		}
 	}
