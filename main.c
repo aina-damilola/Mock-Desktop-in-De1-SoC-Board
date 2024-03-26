@@ -385,7 +385,6 @@ int main(void)
 		//RAVAIL = PS2_data & 0xffff0000; // extract RAVAIL field
 		if (RVALID != 0) {
 			/* shift the next data byte into the display */
-			
 			byte1 = byte2;
 			byte2 = byte3;
 			byte3 = PS2_data & 0xFF;
@@ -421,46 +420,47 @@ int main(void)
 void move_button_outline(int b1, int b2, int b3){
 	if(!move_button_outline_bar){
 		if(b1 == (int)0xe0 && b2 == (int)0xf0){
-			if(b3 == (int)0x72 || b3 == (int)0x74 || b3 == (int)0x75 || b3 == (int)0x6b){
+			if(b3 == (int)0x74 || b3 == (int)0x6b){
 				move_button_outline_bar = true;
 			}
 		}
 		return;
 	}
 	else if(move_button_outline_bar && b2 == (int)0xe0){ 
-
+		
 		if(b3 == (int)0x74){// RIGHT arrow
 			if(!(button_posit >= 2)){
 				button_posit++;
 			}
 			move_button_outline_bar = false;
 		}
-
 		else if(b3 == (int)0x6b){ // LEFT arrow
 			if(!(button_posit <= 0)){
 				button_posit--;
 			}
 			move_button_outline_bar = false;
 		}
-		switch (button_posit)
-		{
-		case 0: // On BLUE (minimize)
-			delete_square(230, 22, 235, 28, 5);
-			delete_square(240, 22, 245, 28, 5);
-			draw_square(220, 22, 225, 28);
-			break;
-		case 1: // On Green (save)
-			delete_square(220, 22, 225, 28, 5);
-			delete_square(240, 22, 245, 28, 5);
-			draw_square(230, 22, 235, 28);
-			break;
-		default:
-			//On red (close)
-			delete_square(230, 22, 235, 28, 5);
-			delete_square(220, 22, 225, 28, 5);
-			draw_square(240, 22, 245, 28);
-			break;
+		if(b3 == (int)0x74 || b3 == (int)0x6b){
+			switch (button_posit){
+				case 0: // On BLUE (minimize)
+					delete_square(230, 22, 235, 28, 5);
+					delete_square(240, 22, 245, 28, 5);
+					draw_square(220, 22, 225, 28);
+					break;
+				case 1: // On Green (save)
+					delete_square(220, 22, 225, 28, 5);
+					delete_square(240, 22, 245, 28, 5);
+					draw_square(230, 22, 235, 28);
+					break;
+				default:
+					//On red (close)
+					delete_square(230, 22, 235, 28, 5);
+					delete_square(220, 22, 225, 28, 5);
+					draw_square(240, 22, 245, 28);
+					break;
+			}
 		}
+		
 	}
 	if(b3 == (int)0x5a && b2 != (int)0xf0 && draw_screen == true && in_screen_editor == true && button_posit == 2){
 		delete_text_editor();
@@ -793,10 +793,10 @@ void draw(){
 	for(int y = header_start; y < 240; y++){
 		for(int x = 0; x < 320; x++){
 			if(y == header_start){
-				plot_pixel(x, y, 0b1100011000011000);
+				plot_pixel(x, y, 0b0100001000001000);
 			}
 			else{
-				plot_pixel(x, y, 0b0100001000001000);
+				plot_pixel(x, y, 0b1100011000011000);
 			}
 			
 		}
