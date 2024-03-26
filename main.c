@@ -407,15 +407,8 @@ int main(void)
 			in_screen_editor = true;
 			draw_screen = false;
 		}
-		/*
-		else if(byte3 == (int)0x66 && byte2 != (int)0xf0 && draw_screen == true && in_screen_editor == true){
-			delete_text_editor();
-			in_screen_editor = false;
-			draw_screen = false;
-		}
-		*/
 		if(byte2 == (int)0xf0){
-			if(byte3 == (int)0x5a || byte3 == (int)0x66){
+			if(byte3 == (int)0x5a){
 				draw_screen = true;
 			}
 		}
@@ -469,7 +462,7 @@ void move_button_outline(int b1, int b2, int b3){
 			break;
 		}
 	}
-	if(b3 == (int)0x66 && b2 != (int)0xf0 && draw_screen == true && in_screen_editor == true && button_posit == 2){
+	if(b3 == (int)0x5a && b2 != (int)0xf0 && draw_screen == true && in_screen_editor == true && button_posit == 2){
 		delete_text_editor();
 		in_screen_editor = false;
 		draw_screen = false;
@@ -789,13 +782,25 @@ void delete_icon(short int image[]){
 
 void draw(){
 	int count = 0;
-	
-	for(int y = 0; y < 240; y++){
+	int header_start = 230;
+	for(int y = 0; y < header_start; y++){
 		for(int x = 0; x < 320; x++){
 			plot_pixel(x, y, background[count]);
 			count++;
 
 		}
+	}
+	for(int y = header_start; y < 240; y++){
+		for(int x = 0; x < 320; x++){
+			if(y == header_start){
+				plot_pixel(x, y, 0b1100011000011000);
+			}
+			else{
+				plot_pixel(x, y, 0b0100001000001000);
+			}
+			
+		}
+		
 	}
 }
 
