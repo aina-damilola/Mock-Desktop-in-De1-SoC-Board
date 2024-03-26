@@ -35,6 +35,7 @@ void draw_icon(short int image[]);
 void delete_icon(short int image[]);
 void HEX_PS2(int, int, int);
 void move_outline(int, int, int);
+void move_button_outline(int, int, int);
 
 void the_exception(void) __attribute__((section(".exceptions")));
 void pushbutton_ISR(void);
@@ -44,7 +45,7 @@ void clear_char_buffer();
 void plot_char(int x, int y, uint8_t letter);
 
 void draw_square(int, int, int, int);
-void delete_square(int, int, int, int);
+void delete_square(int, int, int, int, int);
 
 void draw_text_editor();
 void delete_text_editor();
@@ -79,6 +80,7 @@ int mouse_x = 50;
 int mouse_y = 50;
 
 int og_count = 0;
+int button_posit = 0;
 
 int xpos = 25;
 int ypos = 25;
@@ -87,6 +89,7 @@ int ypos_2 = 40;
 
 bool check = false;
 bool move_outline_bar = true;
+bool move_button_outline_bar = true;
 bool draw_screen = true;
 
 bool in_screen_editor = false;
@@ -395,17 +398,22 @@ int main(void)
 		if(!in_screen_editor){
 			move_outline(byte1, byte2, byte3);
 		}
+		else if(in_screen_editor){
+			move_button_outline(byte1, byte2, byte3);
+		}
 
 		if(byte3 == (int)0x5a && byte2 != (int)0xf0 && draw_screen == true && in_screen_editor == false){
 			draw_text_editor();
 			in_screen_editor = true;
 			draw_screen = false;
 		}
+		/*
 		else if(byte3 == (int)0x66 && byte2 != (int)0xf0 && draw_screen == true && in_screen_editor == true){
 			delete_text_editor();
 			in_screen_editor = false;
 			draw_screen = false;
 		}
+		*/
 		if(byte2 == (int)0xf0){
 			if(byte3 == (int)0x5a || byte3 == (int)0x66){
 				draw_screen = true;
@@ -415,6 +423,58 @@ int main(void)
 
 
 	return 0;
+}
+
+void move_button_outline(int b1, int b2, int b3){
+	if(!move_button_outline_bar){
+		if(b1 == (int)0xe0 && b2 == (int)0xf0){
+			if(b3 == (int)0x72 || b3 == (int)0x74 || b3 == (int)0x75 || b3 == (int)0x6b){
+				move_button_outline_bar = true;
+			}
+		}
+		return;
+	}
+	else if(move_button_outline_bar && b2 == (int)0xe0){ 
+
+		if(b3 == (int)0x74){// RIGHT arrow
+			if(!(button_posit >= 2)){
+				button_posit++;
+			}
+			move_button_outline_bar = false;
+		}
+
+		else if(b3 == (int)0x6b){ // LEFT arrow
+			if(!(button_posit <= 0)){
+				button_posit--;
+			}
+			move_button_outline_bar = false;
+		}
+		switch (button_posit)
+		{
+		case 0: // On BLUE (minimize)
+			delete_square(230, 22, 235, 28, 5);
+			delete_square(240, 22, 245, 28, 5);
+			draw_square(220, 22, 225, 28);
+			break;
+		case 1: // On Green (save)
+			delete_square(220, 22, 225, 28, 5);
+			delete_square(240, 22, 245, 28, 5);
+			draw_square(230, 22, 235, 28);
+			break;
+		default:
+			//On red (close)
+			delete_square(230, 22, 235, 28, 5);
+			delete_square(220, 22, 225, 28, 5);
+			draw_square(240, 22, 245, 28);
+			break;
+		}
+	}
+	if(b3 == (int)0x66 && b2 != (int)0xf0 && draw_screen == true && in_screen_editor == true && button_posit == 2){
+		delete_text_editor();
+		in_screen_editor = false;
+		draw_screen = false;
+	}
+
 }
 
 void draw_text_editor(){
@@ -526,7 +586,7 @@ void move_outline(int b1, int b2, int b3){
 	else if(move_outline_bar && b2 == (int)0xe0){ 
 		if(b3 == (int)0x72){	// down arrow
 			if(ypos >= (25*8)){
-				delete_square(xpos, ypos, xpos_2, ypos_2);
+				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
 				if(xpos < (25*10)){
 					if(Icons[(xpos+25)/25][1].file_presence == 1){
 						ypos = 25;
@@ -539,7 +599,7 @@ void move_outline(int b1, int b2, int b3){
 				draw_square(xpos, ypos, xpos_2, ypos_2);
 			}
 			else{
-				delete_square(xpos, ypos, xpos_2, ypos_2);
+				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
 				if(Icons[xpos/25][(ypos+25)/25].file_presence == 1){
 					ypos += 25;
 					ypos_2 += 25;
@@ -551,7 +611,7 @@ void move_outline(int b1, int b2, int b3){
 		}
 		else if( b3 == (int)0x75){	// UP arrow
 			if(ypos <= 25){
-				delete_square(xpos, ypos, xpos_2, ypos_2);
+				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
 				if(xpos > 25){
 					if(Icons[xpos/25][8].file_presence == 1){
 						ypos = 25*8;
@@ -563,7 +623,7 @@ void move_outline(int b1, int b2, int b3){
 				draw_square(xpos, ypos, xpos_2, ypos_2);
 			}
 			else{
-				delete_square(xpos, ypos, xpos_2, ypos_2);
+				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
 				if(Icons[xpos/25][(ypos-25)/25].file_presence == 1){
 					ypos -= 25;
 					ypos_2 -= 25;
@@ -572,9 +632,9 @@ void move_outline(int b1, int b2, int b3){
 			}
 			move_outline_bar = false;
 		}
-		else if(move_outline_bar && b2 == (int)0xe0 && b3 == (int)0x74){
+		else if(b3 == (int)0x74){
 			if(!(xpos >= 25*10)){	// RIGHT arrow
-				delete_square(xpos, ypos, xpos_2, ypos_2);
+				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
 				if(Icons[(xpos+25)/25][ypos/25].file_presence == 1){
 					xpos += 25;
 					xpos_2 += 25;
@@ -583,9 +643,9 @@ void move_outline(int b1, int b2, int b3){
 			}
 			move_outline_bar = false;
 		}
-		else if(move_outline_bar && b2 == (int)0xe0 && b3 == (int)0x6b){
+		else if(b3 == (int)0x6b){
 			if(!(xpos <= 25)){	// LEFT arrow
-				delete_square(xpos, ypos, xpos_2, ypos_2);
+				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
 				if(Icons[(xpos-25)/25][ypos/25].file_presence == 1){
 					xpos -= 25;
 					xpos_2 -= 25;
@@ -598,26 +658,26 @@ void move_outline(int b1, int b2, int b3){
 	}
 }
 
-void delete_square(int xpos, int ypos, int xpos_2, int ypos_2){
+void delete_square(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = xpos + (320*ypos);
 	for(int x = xpos; x < xpos_2; x++){
 		plot_pixel(x, ypos, background[count + (x-xpos)]);
-		plot_pixel(x, ypos_2, background[count + (x-xpos) + (15*320)]);
+		plot_pixel(x, ypos_2, background[count + (x-xpos) + (spacing*320)]);
 	}
 	for(int y = ypos; y < ypos_2; y++){
 		plot_pixel(xpos, y, background[count + ((y-ypos)*320)]);
-		plot_pixel(xpos_2, y, background[count + ((y-ypos)*320) + 15]);
+		plot_pixel(xpos_2, y, background[count + ((y-ypos)*320) + spacing]);
 	}
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 	for(int x = xpos; x < xpos_2; x++){
 		plot_pixel(x, ypos, background[count + (x-xpos)]);
-		plot_pixel(x, ypos_2, background[count + (x-xpos) + (15*320)]);
+		plot_pixel(x, ypos_2, background[count + (x-xpos) + (spacing*320)]);
 	}
 	for(int y = ypos; y < ypos_2; y++){
 		plot_pixel(xpos, y, background[count + ((y-ypos)*320)]);
-		plot_pixel(xpos_2, y, background[count + ((y-ypos)*320) + 15]);
+		plot_pixel(xpos_2, y, background[count + ((y-ypos)*320) + spacing]);
 	}
 
 	
@@ -784,7 +844,7 @@ void pushbutton_ISR(void) {
 		}
 		else if(press == 0x2){
 			delete_icon(file_icon);
-			delete_square(xpos, ypos, xpos_2,  ypos_2);
+			delete_square(xpos, ypos, xpos_2,  ypos_2, 15);
 			xpos = 25;
 			ypos = 25;
 			xpos_2 = 40;
