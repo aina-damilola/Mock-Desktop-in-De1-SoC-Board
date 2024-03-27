@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define PRE_DOWNLOADED_APPS 3
+
 #define NIOS2_READ_STATUS(dest) \
 	do { dest = __builtin_rdctl(0); } while (0)
 	
@@ -46,6 +48,7 @@ void plot_char(int x, int y, uint8_t letter);
 
 void draw_square(int, int, int, int);
 void delete_square(int, int, int, int, int);
+void delete_square_text_editor(int, int, int, int, int);
 
 void draw_text_editor();
 void delete_text_editor();
@@ -393,7 +396,7 @@ int main(void)
 			// mouse inserted; initialize sending of data
 			*(PS2_ptr) = 0xF4;
 		}	
-		//HEX_PS2(byte1, byte2, byte3);
+		HEX_PS2(byte1, byte2, byte3);
 		if(!in_screen_editor){
 			move_outline(byte1, byte2, byte3);
 		}
@@ -405,6 +408,7 @@ int main(void)
 			draw_text_editor();
 			in_screen_editor = true;
 			draw_screen = false;
+			button_posit = 0;
 		}
 		if(byte2 == (int)0xf0){
 			if(byte3 == (int)0x5a){
@@ -418,6 +422,7 @@ int main(void)
 }
 
 void move_button_outline(int b1, int b2, int b3){
+	
 	if(!move_button_outline_bar){
 		if(b1 == (int)0xe0 && b2 == (int)0xf0){
 			if(b3 == (int)0x74 || b3 == (int)0x6b){
@@ -443,19 +448,19 @@ void move_button_outline(int b1, int b2, int b3){
 		if(b3 == (int)0x74 || b3 == (int)0x6b){
 			switch (button_posit){
 				case 0: // On BLUE (minimize)
-					delete_square(230, 22, 235, 28, 5);
-					delete_square(240, 22, 245, 28, 5);
+					delete_square_text_editor(230, 22, 235, 28, 5);
+					delete_square_text_editor(240, 22, 245, 28, 5);
 					draw_square(220, 22, 225, 28);
 					break;
 				case 1: // On Green (save)
-					delete_square(220, 22, 225, 28, 5);
-					delete_square(240, 22, 245, 28, 5);
+					delete_square_text_editor(220, 22, 225, 28, 5);
+					delete_square_text_editor(240, 22, 245, 28, 5);
 					draw_square(230, 22, 235, 28);
 					break;
 				default:
 					//On red (close)
-					delete_square(230, 22, 235, 28, 5);
-					delete_square(220, 22, 225, 28, 5);
+					delete_square_text_editor(230, 22, 235, 28, 5);
+					delete_square_text_editor(220, 22, 225, 28, 5);
 					draw_square(240, 22, 245, 28);
 					break;
 			}
@@ -606,7 +611,7 @@ void move_outline(int b1, int b2, int b3){
 			if(ypos <= 25){
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
 				if(xpos > 25){
-					if(Icons[xpos/25][8].file_presence == 1){
+					if(Icons[(xpos-25)/25][8].file_presence == 1){
 						ypos = 25*8;
 						ypos_2 = 15+(25*8);
 						xpos -= 25;
@@ -649,6 +654,33 @@ void move_outline(int b1, int b2, int b3){
 			move_outline_bar = false;
 		}
 	}
+}
+
+void delete_square_text_editor(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	int count = xpos + (320*ypos);
+	for(int x = xpos; x < xpos_2; x++){
+		plot_pixel(x, ypos, 0b111101111001111);
+		plot_pixel(x, ypos_2, 0b111101111001111);
+	}
+	for(int y = ypos; y < ypos_2; y++){
+		plot_pixel(xpos, y, 0b111101111001111);
+		plot_pixel(xpos_2, y, 0b111101111001111);
+	}
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	for(int x = xpos; x < xpos_2; x++){
+		plot_pixel(x, ypos, 0b111101111001111);
+		plot_pixel(x, ypos_2, 0b111101111001111);
+	}
+	for(int y = ypos; y < ypos_2; y++){
+		plot_pixel(xpos, y, 0b111101111001111);
+		plot_pixel(xpos_2, y, 0b111101111001111);
+	}
+
+	
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 }
 
 void delete_square(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
@@ -782,7 +814,7 @@ void delete_icon(short int image[]){
 
 void draw(){
 	int count = 0;
-	int header_start = 230;
+	int header_start = 227;
 	for(int y = 0; y < header_start; y++){
 		for(int x = 0; x < 320; x++){
 			plot_pixel(x, y, background[count]);
@@ -981,3 +1013,8 @@ void HEX_PS2(int b1, int b2, int b3) {
 	*(HEX3_HEX0_ptr) = *(int *)(hex_segs);
 	*(HEX5_HEX4_ptr) = *(int *)(hex_segs + 4);
 }
+/*
+short int Scancodes_to_ASCII_code(int b1, int b2, int b3){
+if()
+}
+                   */
