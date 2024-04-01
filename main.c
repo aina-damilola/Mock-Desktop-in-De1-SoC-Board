@@ -38,6 +38,7 @@ void delete_icon(short int image[]);
 void HEX_PS2(int, int, int);
 void move_outline(int, int, int);
 void move_button_outline(int, int, int);
+void move_outline_in_taskbar(int, int, int);
 
 void the_exception(void) __attribute__((section(".exceptions")));
 void pushbutton_ISR(void);
@@ -90,11 +91,15 @@ int ypos = 25;
 int xpos_2 = 40;
 int ypos_2 = 40;
 
+int xpos_task = 25;
+
+
 bool check = false;
 bool move_outline_bar = true;
 bool move_button_outline_bar = true;
 bool draw_screen = true;
 
+bool in_taskbar = false;
 bool in_screen_editor = false;
 
 const short background_2[]  = {
@@ -412,7 +417,12 @@ int main(void)
 		}	
 		HEX_PS2(byte1, byte2, byte3);
 		if(!in_screen_editor){
-			move_outline(byte1, byte2, byte3);
+			if(in_taskbar){
+				move_outline_in_taskbar(byte1, byte2, byte3);
+			}else{
+				move_outline(byte1, byte2, byte3);
+			}
+			
 		}
 		else if(in_screen_editor){
 			move_button_outline(byte1, byte2, byte3);
@@ -601,16 +611,9 @@ void move_outline(int b1, int b2, int b3){
 		if(b3 == (int)0x72){	// down arrow
 			if(ypos >= (25*8)){
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
-				if(xpos < (25*10)){
-					if(Icons[(xpos+25)/25][1].file_presence == 1){
-						ypos = 25;
-						ypos_2 = 40;
-						xpos += 25;
-						xpos_2 += 25;
-					}
-				}
-				
-				draw_square(xpos, ypos, xpos_2, ypos_2);
+				in_taskbar = true;
+				move_outline_bar = true;
+				return;
 			}
 			else{
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
@@ -670,6 +673,35 @@ void move_outline(int b1, int b2, int b3){
 			move_outline_bar = false;
 		}
 	}
+}
+
+void move_outline_in_taskbar(int b1, int b2, int b3){
+	if(!move_outline_bar){
+		if(b1 == (int)0xe0 && b2 == (int)0xf0){
+			if( b3 == (int)0x74 || b3 == (int)0x75 || b3 == (int)0x6b){
+				move_outline_bar = true;
+			}
+		}
+		return;
+	}
+	else if(move_outline_bar && b2 == (int)0xe0){ 
+		if( b3 == (int)0x75){	// UP arrow
+			in_taskbar = false;
+			draw_square(xpos, ypos, xpos_2, ypos_2);
+			move_outline_bar = false;
+		}
+		else if(b3 == (int)0x74){// RIGHT arrow
+			
+			move_outline_bar = false;
+		}
+		else if(b3 == (int)0x6b){// LEFT arrow
+			
+			move_outline_bar = false;
+		}
+	}
+
+	//draw_square(int xpos, int ypos, int xpos_2, int ypos_2){
+		//delete_square_text_editor(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
 }
 
 void delete_square_text_editor(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
