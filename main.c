@@ -4,29 +4,53 @@
 
 #define PRE_DOWNLOADED_APPS 3
 
-#define NIOS2_READ_STATUS(dest) \
-	do { dest = __builtin_rdctl(0); } while (0)
-	
-#define NIOS2_WRITE_STATUS(src) \
-	do { __builtin_wrctl(0, src); } while (0)
-	
-#define NIOS2_READ_ESTATUS(dest) \
-	do { dest = __builtin_rdctl(1); } while (0)
-	
-#define NIOS2_READ_BSTATUS(dest) \
-	do { dest = __builtin_rdctl(2); } while (0)
-	
-#define NIOS2_READ_IENABLE(dest) \
-	do { dest = __builtin_rdctl(3); } while (0)
-	
+#define NIOS2_READ_STATUS(dest)    \
+	do                             \
+	{                              \
+		dest = __builtin_rdctl(0); \
+	} while (0)
+
+#define NIOS2_WRITE_STATUS(src)  \
+	do                           \
+	{                            \
+		__builtin_wrctl(0, src); \
+	} while (0)
+
+#define NIOS2_READ_ESTATUS(dest)   \
+	do                             \
+	{                              \
+		dest = __builtin_rdctl(1); \
+	} while (0)
+
+#define NIOS2_READ_BSTATUS(dest)   \
+	do                             \
+	{                              \
+		dest = __builtin_rdctl(2); \
+	} while (0)
+
+#define NIOS2_READ_IENABLE(dest)   \
+	do                             \
+	{                              \
+		dest = __builtin_rdctl(3); \
+	} while (0)
+
 #define NIOS2_WRITE_IENABLE(src) \
-	do { __builtin_wrctl(3, src); } while (0)
-	
-#define NIOS2_READ_IPENDING(dest) \
-	do { dest = __builtin_rdctl(4); } while (0)
-	
-#define NIOS2_READ_CPUID(dest) \
-	do { dest = __builtin_rdctl(5); } while (0)
+	do                           \
+	{                            \
+		__builtin_wrctl(3, src); \
+	} while (0)
+
+#define NIOS2_READ_IPENDING(dest)  \
+	do                             \
+	{                              \
+		dest = __builtin_rdctl(4); \
+	} while (0)
+
+#define NIOS2_READ_CPUID(dest)     \
+	do                             \
+	{                              \
+		dest = __builtin_rdctl(5); \
+	} while (0)
 
 // Function initialization
 void wait_for_vsync();
@@ -68,6 +92,8 @@ volatile int char_buffer_start; // global variable
 
 struct placeholder{
 	short int file_presence;
+	char* text;
+    int text_size;
 };
 
 // Global arrays
@@ -388,12 +414,12 @@ const char text_editor[]  = {
 
 int main(void)
 {
-	volatile int * KEY_ptr = (int *)0xff200050; 
-	volatile int * PS2_ptr = (int *)0xff200100;
+	volatile int *KEY_ptr = (int *)0xff200050;
+	volatile int *PS2_ptr = (int *)0xff200100;
 	*(KEY_ptr + 2) = 0b0011;
 	NIOS2_WRITE_IENABLE(0x2);
-	NIOS2_WRITE_STATUS(1);	
-	
+	NIOS2_WRITE_STATUS(1);
+
 	int PS2_data, RVALID, RAVAIL;
 	
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
@@ -408,10 +434,18 @@ int main(void)
     pixel_buffer_start = *pixel_ctrl_ptr;
     draw(); // pixel_buffer_start points to the pixel buffer
 
-    /* set back pixel buffer to Buffer 2 */
-    *(pixel_ctrl_ptr + 1) = (int) &Buffer2;
-    pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
-     // pixel_buffer_start points to the pixel buffer
+	/* set front pixel buffer to Buffer 1 */
+	*(pixel_ctrl_ptr + 1) = (int)&Buffer1; // first store the address in the  back buffer
+	/* now, swap the front/back buffers, to set the front buffer location */
+	wait_for_vsync();
+	/* initialize a pointer to the pixel buffer, used by drawing functions */
+	pixel_buffer_start = *pixel_ctrl_ptr;
+	draw(); // pixel_buffer_start points to the pixel buffer
+
+	/* set back pixel buffer to Buffer 2 */
+	*(pixel_ctrl_ptr + 1) = (int)&Buffer2;
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
+												// pixel_buffer_start points to the pixel buffer
 	draw();
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
@@ -424,8 +458,7 @@ int main(void)
     while (1)
     {
 
-		
-		PS2_data = *(PS2_ptr); // read the Data register in the PS/2 port
+		PS2_data = *(PS2_ptr);		// read the Data register in the PS/2 port
 		RVALID = PS2_data & 0x8000; // extract the RVALID field
 		//RAVAIL = PS2_data & 0xffff0000; // extract RAVAIL field
 		if (RVALID != 0) {
@@ -475,7 +508,6 @@ int main(void)
 			}else{
 				move_outline(byte1, byte2, byte3);
 			}
-			
 		}
 		else if(in_screen_editor){
 			if(typing){
@@ -1005,17 +1037,21 @@ void draw_icon(short int image[]){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
 
+	if (initial_x >= 25 * 11)
+	{
+		return;
+	}
 
-	if(initial_x >= 25*11){return;}
-	
-	for(int y = initial_y; y < initial_y +15; y++){
-		for(int x = initial_x; x < initial_x +15; x++){
+	for (int y = initial_y; y < initial_y + 15; y++)
+	{
+		for (int x = initial_x; x < initial_x + 15; x++)
+		{
 			plot_pixel(x, y, image[count]);
 			count++;
-			
 		}
 	}
-	if(!check){
+	if (!check)
+	{
 		check = !check;
 		wait_for_vsync();
 		pixel_buffer_start = *(pixel_ctrl_ptr + 1);
@@ -1026,9 +1062,6 @@ void draw_icon(short int image[]){
 	if(initial_y > 25*7){
 		initial_y = 25;
 		initial_x += 25;
-	}else{
-		initial_y += 25;
-
 	}
 	
 	
@@ -1036,8 +1069,9 @@ void draw_icon(short int image[]){
 	check = !check;
 }
 
-void delete_icon(short int image[]){
-	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+void delete_icon(short int image[])
+{
+	volatile int *pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
 
 	if(!check){
@@ -1045,7 +1079,9 @@ void delete_icon(short int image[]){
 		if(initial_y == 25){
 			initial_y = (25*8);
 			initial_x -= 25;
-		}else{
+		}
+		else
+		{
 			initial_y -= 25;
 		}
 
@@ -1063,7 +1099,8 @@ void delete_icon(short int image[]){
 		count -= 15;
 		count += 320;
 	}
-	if(!check){
+	if (!check)
+	{
 		check = !check;
 		wait_for_vsync();
 		pixel_buffer_start = *(pixel_ctrl_ptr + 1);
@@ -1077,7 +1114,8 @@ void delete_icon(short int image[]){
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 }
 
-void draw(){
+void draw()
+{
 	int count = 0;
 	int header_height = 16;
 	int app_width_height = 12;
@@ -1091,7 +1129,6 @@ void draw(){
 		for(int x = 0; x < 320; x++){
 			plot_pixel(x, y, background[count]);
 			count++;
-
 		}
 	}
 
@@ -1114,39 +1151,46 @@ void draw(){
 	}
 }
 
-void wait_for_vsync(){
-	volatile int * pixel_ctrl_ptr = (int *) 0xff203020; // base address
+void wait_for_vsync()
+{
+	volatile int *pixel_ctrl_ptr = (int *)0xff203020; // base address
 	int status;
 	*(pixel_ctrl_ptr) = 1; // swap buffers
 	// - write 1 into front buffer address register
 	status = *(pixel_ctrl_ptr + 3); // read the status register
-	while ((status & 0x01) != 0){ // polling loop waiting for S bit to go to 0
+	while ((status & 0x01) != 0)
+	{ // polling loop waiting for S bit to go to 0
 		status = *(pixel_ctrl_ptr + 3);
 	}
-	
 }
 
-void clear_screen(){
-	for(int x = 0; x < 320; x++){
-		for(int y = 0; y < 240; y++){
-			plot_pixel(x,y,0);
+void clear_screen()
+{
+	for (int x = 0; x < 320; x++)
+	{
+		for (int y = 0; y < 240; y++)
+		{
+			plot_pixel(x, y, 0);
 		}
 	}
 }
 
-void interrupt_handler(void) {
+void interrupt_handler(void)
+{
 	int ipending;
 	NIOS2_READ_IPENDING(ipending);
-	if (ipending & 0x2){
+	if (ipending & 0x2)
+	{
 		pushbutton_ISR();
 	}
 	// else, ignore the interrupt
 	return;
 }
 
-void pushbutton_ISR(void) {
-	volatile int * KEY_ptr = (int *)0xff200050;
-	volatile int * LED_ptr = (int *)0xff200000;
+void pushbutton_ISR(void)
+{
+	volatile int *KEY_ptr = (int *)0xff200050;
+	volatile int *LED_ptr = (int *)0xff200000;
 	int press;
 	press = *(KEY_ptr + 3); // read the pushbutton interrupt register
 	*(KEY_ptr + 3) = press; // Clear the interrupt
@@ -1172,12 +1216,13 @@ void pushbutton_ISR(void) {
 	return;
 }
 
-void the_exception(void){
+void the_exception(void)
+{
 	asm("subi sp, sp, 128");
 	asm("stw et, 96(sp)");
 	asm("rdctl et, ctl4");
 	asm("beq et, r0, SKIP_EA_DEC"); // Interrupt is not external
-	asm("subi ea, ea, 4"); 
+	asm("subi ea, ea, 4");
 	asm("SKIP_EA_DEC:");
 	asm("stw r1, 4(sp)"); // Save all registers
 	asm("stw r2, 8(sp)");
@@ -1212,7 +1257,7 @@ void the_exception(void){
 	asm("stw r31, 124(sp)"); // r31 = ra
 	asm("addi fp, sp, 128");
 	asm("call interrupt_handler"); // Call the C language interrupt handler
-	asm("ldw r1, 4(sp)"); // Restore all registers
+	asm("ldw r1, 4(sp)");		   // Restore all registers
 	asm("ldw r2, 8(sp)");
 	asm("ldw r3, 12(sp)");
 	asm("ldw r4, 16(sp)");
@@ -1245,12 +1290,14 @@ void the_exception(void){
 	asm("ldw r31, 124(sp)"); // r31 = ra
 	asm("addi sp, sp, 128");
 	asm("eret");
-
 }
 
-void clear_char_buffer(){
-	for (int x=0; x<80; x++){
-		for (int y=0; y<60; y++){
+void clear_char_buffer()
+{
+	for (int x = 0; x < 80; x++)
+	{
+		for (int y = 0; y < 60; y++)
+		{
 			volatile uint8_t *one_char_address;
 			one_char_address = char_buffer_start + (y << 7) + x;
 			*one_char_address = 0;
@@ -1277,17 +1324,18 @@ void HEX_PS2(int b1, int b2, int b3) {
 	volatile int * HEX3_HEX0_ptr = (int *)0xff200020;
 	volatile int * HEX5_HEX4_ptr = (int *)0xff200030;
 	/* SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in
-	* a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F
-	*/
+	 * a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F
+	 */
 	unsigned char seven_seg_decode_table[] = {
-	0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
-	0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
+		0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
+		0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
 	unsigned char hex_segs[] = {0, 0, 0, 0, 0, 0, 0, 0};
 	unsigned int shift_buffer, nibble;
 	unsigned char code;
 	int i;
 	shift_buffer = (b1 << 16) | (b2 << 8) | b3;
-	for (i = 0; i < 6; ++i) {
+	for (i = 0; i < 6; ++i)
+	{
 		nibble = shift_buffer & 0x0000000F; // character is in rightmost nibble
 		code = seven_seg_decode_table[nibble];
 		hex_segs[i] = code;
@@ -1471,4 +1519,48 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		}
 	}
 	return ASCII_code;
+}
+
+
+void save_keystroke(char key_press, int file_ID){
+
+	// temp
+	file_ID = 0;
+
+	// Decode file_ID
+	int col = file_ID / 8;
+	// int row = file_ID % 8;
+	int row = 0;
+
+	struct placeholder curr_file = Icons[row][file_ID];
+	int len = curr_file.text_size;
+	int text_length;
+
+	if (curr_file.text == NULL){
+		text_length = 0;
+	} else {
+		text_length = strlen(curr_file.text);
+	}
+
+	if (text_length >= len ){
+
+		char* more_numbers = (char *)realloc(curr_file.text, (len+1) * sizeof(char));
+
+		if (more_numbers != NULL)
+		{
+			Icons[row][file_ID].text = more_numbers;
+			Icons[row][file_ID].text[curr_file.text_size] = key_press;
+			Icons[row][file_ID].text_size += 1;
+		}
+		else
+		{
+			// free(more_numbers);
+			puts("Error (re)allocating memory");
+			exit(1);
+		}
+	}
+
+	else {
+		Icons[row][file_ID].text[curr_file.text_size] = key_press;
+	}
 }
