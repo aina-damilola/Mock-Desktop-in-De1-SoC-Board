@@ -50,6 +50,7 @@ void plot_char(int x, int y, uint8_t letter);
 void draw_square(int, int, int, int);
 void delete_square(int, int, int, int, int);
 void delete_square_text_editor(int, int, int, int, int);
+void delete_square_taskbar(int, int, int, int);
 
 void draw_text_editor();
 void delete_text_editor();
@@ -91,8 +92,7 @@ int ypos = 25;
 int xpos_2 = 40;
 int ypos_2 = 40;
 
-int xpos_task = 25;
-
+int xpos_task = 40;
 
 bool check = false;
 bool move_outline_bar = true;
@@ -428,10 +428,14 @@ int main(void)
 			move_button_outline(byte1, byte2, byte3);
 		}
 
-		if(byte3 == (int)0x5a && byte2 != (int)0xf0 && draw_screen == true && in_screen_editor == false){
-			delete_square(xpos, ypos, xpos_2,  ypos_2, 15);
-			draw_text_editor();
-			in_screen_editor = true;
+		if(byte3 == (int)0x5a && byte2 != (int)0xf0 && draw_screen && !in_screen_editor && in_taskbar){
+			int app_number = (xpos_task-40)/25;
+			if(app_number == 0){  // text_editor
+				delete_square(xpos, ypos, xpos_2,  ypos_2, 15);
+				
+				draw_text_editor();
+				in_screen_editor = true;
+			}
 			draw_screen = false;
 			button_posit = 0;
 			
@@ -493,10 +497,18 @@ void move_button_outline(int b1, int b2, int b3){
 		}
 		
 	}
-	if(b3 == (int)0x5a && b2 != (int)0xf0 && draw_screen == true && in_screen_editor == true && button_posit == 2){
-		delete_text_editor();
-		in_screen_editor = false;
-		draw_screen = false;
+	if(b3 == (int)0x5a && b2 != (int)0xf0 && draw_screen && in_screen_editor){
+		if(button_posit == 2){
+			delete_text_editor();
+			in_screen_editor = false;
+			draw_screen = false;
+		}
+		else if(button_posit == 1){
+			delete_text_editor();
+			draw_icon(file_icon);
+			in_screen_editor = false;
+			draw_screen = false;
+		}
 	}
 
 }
@@ -611,17 +623,37 @@ void move_outline(int b1, int b2, int b3){
 		if(b3 == (int)0x72){	// down arrow
 			if(ypos >= (25*8)){
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
-				in_taskbar = true;
-				move_outline_bar = true;
-				return;
+				
+				if(Icons[(xpos_task-40)/25][8].file_presence == 1){
+					in_taskbar = true;
+					draw_square(xpos_task, 225, xpos_task + 14, 239);
+					move_outline_bar = true;
+					return;
+				}
+				else if(Icons[(xpos)/25][0].file_presence == 1){
+					xpos += 25;
+					ypos = 25;
+					xpos_2 += 25;
+					ypos_2 = 40;
+				}
+				draw_square(xpos, ypos, xpos_2, ypos_2);
 			}
 			else{
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
-				if(Icons[xpos/25][(ypos+25)/25].file_presence == 1){
+				if(Icons[(xpos-25)/25][ypos/25].file_presence == 1){
 					ypos += 25;
 					ypos_2 += 25;
 				}
+				else{
+					if(Icons[(xpos_task-40)/25][8].file_presence == 1){
+						in_taskbar = true;
+						draw_square(xpos_task, 225, xpos_task + 14, 239);
+						move_outline_bar = true;
+						return;
+					}
+				}
 				draw_square(xpos, ypos, xpos_2, ypos_2);
+				
 			}
 			move_outline_bar = false;
 			
@@ -630,7 +662,7 @@ void move_outline(int b1, int b2, int b3){
 			if(ypos <= 25){
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
 				if(xpos > 25){
-					if(Icons[(xpos-25)/25][8].file_presence == 1){
+					if(Icons[(xpos)/25][7].file_presence == 1){
 						ypos = 25*8;
 						ypos_2 = 15+(25*8);
 						xpos -= 25;
@@ -641,7 +673,7 @@ void move_outline(int b1, int b2, int b3){
 			}
 			else{
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
-				if(Icons[xpos/25][(ypos-25)/25].file_presence == 1){
+				if(Icons[(xpos-25)/25][(ypos-25-25)/25].file_presence == 1){
 					ypos -= 25;
 					ypos_2 -= 25;
 				}
@@ -652,7 +684,7 @@ void move_outline(int b1, int b2, int b3){
 		else if(b3 == (int)0x74){
 			if(!(xpos >= 25*10)){	// RIGHT arrow
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
-				if(Icons[(xpos+25)/25][ypos/25].file_presence == 1){
+				if(Icons[(xpos)/25][(ypos-25)/25].file_presence == 1){
 					xpos += 25;
 					xpos_2 += 25;
 				}
@@ -663,7 +695,7 @@ void move_outline(int b1, int b2, int b3){
 		else if(b3 == (int)0x6b){
 			if(!(xpos <= 25)){	// LEFT arrow
 				delete_square(xpos, ypos, xpos_2, ypos_2, 15);
-				if(Icons[(xpos-25)/25][ypos/25].file_presence == 1){
+				if(Icons[(xpos-25-25)/25][(ypos-25)/25].file_presence == 1){
 					xpos -= 25;
 					xpos_2 -= 25;
 				}
@@ -689,15 +721,28 @@ void move_outline_in_taskbar(int b1, int b2, int b3){
 			in_taskbar = false;
 			draw_square(xpos, ypos, xpos_2, ypos_2);
 			move_outline_bar = false;
+			delete_square_taskbar(xpos_task, 225, xpos_task + 14, 239);
+			xpos_task = 40;
 		}
 		else if(b3 == (int)0x74){// RIGHT arrow
-			
+
+			if(Icons[(xpos_task-40+25)/25][8].file_presence == 1){
+				delete_square_taskbar(xpos_task, 225, xpos_task + 14, 239);
+				xpos_task += 25;
+				draw_square(xpos_task, 225, xpos_task + 14, 239);
+			}
 			move_outline_bar = false;
 		}
 		else if(b3 == (int)0x6b){// LEFT arrow
-			
+			if(Icons[(xpos_task-40-25)/25][8].file_presence == 1){
+				delete_square_taskbar(xpos_task, 225, xpos_task + 14, 239);
+				xpos_task -= 25;
+				draw_square(xpos_task, 225, xpos_task + 14, 239);
+			}
 			move_outline_bar = false;
 		}
+
+		
 	}
 
 	//draw_square(int xpos, int ypos, int xpos_2, int ypos_2){
@@ -758,6 +803,33 @@ void delete_square(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 }
 
+void delete_square_taskbar(int xpos, int ypos, int xpos_2, int ypos_2){
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	int count = xpos + (320*ypos);
+	for(int x = xpos; x < xpos_2; x++){
+		plot_pixel(x, ypos, 0b1100011000011000);
+		plot_pixel(x, ypos_2, 0b1100011000011000);
+	}
+	for(int y = ypos; y < ypos_2; y++){
+		plot_pixel(xpos, y, 0b1100011000011000);
+		plot_pixel(xpos_2, y, 0b1100011000011000);
+	}
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	for(int x = xpos; x < xpos_2; x++){
+		plot_pixel(x, ypos, 0b1100011000011000);
+		plot_pixel(x, ypos_2, 0b1100011000011000);
+	}
+	for(int y = ypos; y < ypos_2; y++){
+		plot_pixel(xpos, y, 0b1100011000011000);
+		plot_pixel(xpos_2, y, 0b1100011000011000);
+	}
+
+	
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+}
+
 void draw_square(int xpos, int ypos, int xpos_2, int ypos_2){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	for(int x = xpos; x < xpos_2; x++){
@@ -805,7 +877,7 @@ void draw_icon(short int image[]){
 		draw_icon(file_icon);
 		return;
 	}
-	Icons[initial_x/25][initial_y/25].file_presence = 1;
+	Icons[(initial_x-25)/25][(initial_y-25)/25].file_presence = 1;
 	if(initial_y > 25*7){
 		initial_y = 25;
 		initial_x += 25;
@@ -854,7 +926,7 @@ void delete_icon(short int image[]){
 		return;
 	}
 	
-	Icons[initial_x/25][initial_y/25].file_presence = 0;
+	Icons[(initial_x-25)/25][(initial_y-25)/25].file_presence = 0;
 	check = !check;
 	
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
@@ -867,6 +939,9 @@ void draw(){
 
 	int margin = (header_height-app_width_height)/2;
 	
+	Icons[0][8].file_presence = 1;
+	Icons[1][8].file_presence = 1;
+
 	for(int y = 0; y < 240-header_height; y++){
 		for(int x = 0; x < 320; x++){
 			plot_pixel(x, y, background[count]);
@@ -880,7 +955,7 @@ void draw(){
 	for(int y = 240-header_height; y < 240; y++){
 			
 		for(int x = 0; x < 320; x++){
-			if(y >= 240 - header_height + margin && y < 240 - margin && x >= left_margin && x < left_margin + app_width_height){
+			if(y >= 240 - header_height + margin && y < 240 - margin && x > left_margin && x <= left_margin + app_width_height){
 				plot_pixel(x, y, text_editor[count]);
 				count++;
 			}else{
