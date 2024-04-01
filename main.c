@@ -141,8 +141,8 @@ bool caps_lock_press_ready = true;
 bool typing = true;
 bool ready_for_next_character = false;
 
-int test_x = 20;
-int test_y = 20;
+int test_x = 6;
+int test_y = 8;
 
 int byte1 = 0, byte2 = 0, byte3 = 0;
 
@@ -519,7 +519,9 @@ int main(void)
 		}
 		else if(in_screen_editor){
 			if(typing){
-				if(byte2 == (int)0xe0 && byte3 == 0x74){
+				if(byte2 == (int)0xe0 && byte3 == 0x75){
+					draw_square(230, 22, 235, 28);
+					button_posit = 1;
 					typing = false;
 				}
 		
@@ -527,7 +529,17 @@ int main(void)
 
 				if(plot_char(test_x, test_y, new_char)){
 					save_keystroke(new_char, 0);
-					test_x += 1;
+	
+					if(test_x > 61){
+						if(test_y <= 49){
+							test_x = 6;
+							test_y+=1;
+						}
+						
+					}else{
+						test_x += 1;
+					}
+					
 					byte1 = byte2 = byte3 = 1;
 				}
 				
@@ -538,7 +550,7 @@ int main(void)
 			}
 			
 			
-			//clear_char_buffer();
+			
 		}
 
 		if(byte3 == (int)0x5a && byte2 != (int)0xf0 && draw_screen && !in_screen_editor){
@@ -586,6 +598,9 @@ void move_button_outline(int b1, int b2, int b3){
 		if(b3 == 0x72){ // DOWN arrow
 			typing = true;
 			byte1 = byte2 = byte3 = 1;
+			delete_square_text_editor(230, 22, 235, 28, 5);
+			delete_square_text_editor(240, 22, 245, 28, 5);
+			delete_square_text_editor(220, 22, 225, 28, 5);
 		}
 		if(b3 == (int)0x74){// RIGHT arrow
 			if(!(button_posit >= 2)){
@@ -623,11 +638,13 @@ void move_button_outline(int b1, int b2, int b3){
 	}
 	if(b3 == (int)0x5a && b2 != (int)0xf0 && draw_screen && in_screen_editor){
 		if(button_posit == 2){
+			clear_char_buffer();
 			delete_text_editor();
 			in_screen_editor = false;
 			draw_screen = false;
 		}
 		else if(button_posit == 1){
+			clear_char_buffer();
 			delete_text_editor();
 			draw_icon(file_icon);
 			in_screen_editor = false;
