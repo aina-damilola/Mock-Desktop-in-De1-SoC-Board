@@ -99,7 +99,7 @@ struct placeholder{
 // Global arrays
 short int Buffer1[240][512]; // 240 rows, 512 (320 + padding) columns
 short int Buffer2[240][512];
-struct placeholder Icons[11][9]= {0};
+struct placeholder Icons[11][9] ;
 short int prev[76800] = {0};
 
 // Global Variables
@@ -414,6 +414,14 @@ const char text_editor[]  = {
 
 int main(void)
 {
+	for (int i=0; i < 11; ++i){
+		for (int j=0; j<9; j++){
+			Icons[i][j].file_presence = 0;
+			Icons[i][j].text = NULL;
+			Icons[i][j].text_size = 0;
+		}
+	}
+
 	volatile int *KEY_ptr = (int *)0xff200050;
 	volatile int *PS2_ptr = (int *)0xff200100;
 	*(KEY_ptr + 2) = 0b0011;
@@ -515,8 +523,10 @@ int main(void)
 					typing = false;
 				}
 		
-	
-				if(plot_char(test_x, test_y, Scancodes_to_ASCII_code(byte1, byte2, byte3))){
+				char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
+
+				if(plot_char(test_x, test_y, new_char)){
+					save_keystroke(new_char, 0);
 					test_x += 1;
 					byte1 = byte2 = byte3 = 1;
 				}
@@ -1462,7 +1472,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		}
 		// Values not sensitive to shift,alt,caps,ctrl
 		switch(b3){
-			case 0x29: test_x+=1; ready_for_next_character = false; break;	// SPACE
+			case 0x29: ASCII_code = 32; test_x+=1; ready_for_next_character = false; break;	// SPACE
 		}
 		
 		
@@ -1550,7 +1560,6 @@ void save_keystroke(char key_press, int file_ID){
 		{
 			Icons[row][file_ID].text = more_numbers;
 			Icons[row][file_ID].text[curr_file.text_size] = key_press;
-			Icons[row][file_ID].text_size += 1;
 		}
 		else
 		{
@@ -1563,4 +1572,11 @@ void save_keystroke(char key_press, int file_ID){
 	else {
 		Icons[row][file_ID].text[curr_file.text_size] = key_press;
 	}
+	Icons[row][file_ID].text_size += 1;
+
+	// for ()
+	for (int k=0; k < Icons[row][file_ID].text_size; k++){
+		printf("%c", Icons[row][file_ID].text[k]);
+	}
+	
 }
