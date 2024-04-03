@@ -85,6 +85,7 @@ short int save_pixel(int, int);
 uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3);
 void save_keystroke(char key_press, int new_or_saved);
 void display_file();
+void file_return(bool save);
 
 //Global variables
 volatile int pixel_buffer_start;
@@ -96,8 +97,10 @@ volatile int char_buffer_start; // global variable
 
 struct placeholder{
 	short int file_presence;
+	char* prev_text;
 	char* text;
     int text_size;
+	int prev_text_size;
 };
 
 // Global arrays
@@ -148,6 +151,8 @@ bool ready_for_next_character = false;
 int test_x = 6;
 int test_y = 8;
 int type_of_file;
+
+int col, row;
 
 int byte1 = 0, byte2 = 0, byte3 = 0;
 
@@ -424,6 +429,8 @@ int main(void)
 			Icons[i][j].file_presence = 0;
 			Icons[i][j].text = NULL;
 			Icons[i][j].text_size = 0;
+			Icons[i][j].prev_text = NULL;
+			Icons[i][j].prev_text_size = 0;
 		}
 	}
 
@@ -592,7 +599,7 @@ int main(void)
 					
 					draw_text_editor();
 					in_screen_editor = true;
-					typing = false;
+					typing = true;
 					type_of_file = 1;
 				}
 				draw_screen = false;
@@ -604,10 +611,11 @@ int main(void)
 				display_file();
 				type_of_file = 0;
 				in_screen_editor = true;
-				typing = false;
+				typing = true;
 				button_posit = 0;
 				draw_screen = false;
 			}
+			byte1 = byte2 = byte3 = 0;
 		}
 		if(byte2 == (int)0xf0){
 			if(byte3 == (int)0x5a){
@@ -619,6 +627,83 @@ int main(void)
 
 
 	return 0;
+}
+
+void file_return(bool save){ // if true, save the file, if false, dont save the file
+	if(save){
+		Icons[row][col].text_size = Icons[row][col].prev_text_size;
+		Icons[row][col].text = Icons[row][col].prev_text;
+	}
+	else{
+		Icons[row][col].prev_text_size = Icons[row][col].text_size;
+		Icons[row][col].prev_text = Icons[row][col].text;
+	}
+}
+
+// 1 for new, 0 for saved
+void save_keystroke(char key_press, int new_or_saved){
+
+	
+
+	if(new_or_saved == 1){
+		col = (initial_x-25)/25;
+		row = (initial_y-25)/25;
+	}else{
+		col = (xpos-25)/25;
+		row = (ypos-25)/25;
+	}
+	
+	int len = Icons[row][col].prev_text_size;
+	int text_length;
+
+	// Backspace
+	if ( key_press == 8){
+		if(len!=0){
+			Icons[row][col].prev_text_size -= 1;
+		}
+		
+		return;
+	}
+
+	// Determine length of current text and whether we need more space
+	if (Icons[row][col].prev_text == NULL){
+		text_length = 0;
+	} else {
+		text_length = strlen(Icons[row][col].prev_text);
+	}
+
+	// Need more space
+	if (text_length >= len ){
+
+		char* more_numbers = (char *)realloc(Icons[row][col].prev_text, (len+1) * sizeof(char));
+
+		if (more_numbers != NULL)
+		{
+			Icons[row][col].prev_text = more_numbers;
+			Icons[row][col].prev_text[len] = key_press;
+			Icons[row][col].prev_text_size += 1;
+		}
+		else
+		{
+			// free(more_numbers);
+			puts("Error (re)allocating memory");
+			exit(1);
+		}
+	}
+
+	// Don't need more space
+	else {
+		Icons[row][col].prev_text[len] = key_press;
+		Icons[row][col].prev_text_size += 1;
+	}
+
+	
+	// printf("Row: %d, Col: %d\n", row, col);
+	// for(int i = 0; i < Icons[row][col].text_size; i++){
+	// 	printf("%d ", Icons[row][col].text[i]);
+	// }
+	// printf("\n");
+	
 }
 
 void display_file(){
@@ -707,14 +792,17 @@ void move_button_outline(int b1, int b2, int b3){
 	}
 	if(b3 == (int)0x5a && b2 != (int)0xf0 && draw_screen && in_screen_editor){
 		if(button_posit == 2){
+			file_return(false);
 			clear_char_buffer();
 			delete_text_editor();
 			in_screen_editor = false;
 			draw_screen = false;
 			test_x = 6;
 			test_y = 8;
+			
 		}
 		else if(button_posit == 1){
+			file_return(true);
 			clear_char_buffer();
 			delete_text_editor();
 			if(type_of_file == 1){
@@ -725,6 +813,7 @@ void move_button_outline(int b1, int b2, int b3){
 			test_y = 8;
 			in_screen_editor = false;
 			draw_screen = false;
+			
 		}
 	}
 
@@ -1579,70 +1668,4 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		}
 	}
 	return ASCII_code;
-}
-
-// 1 for new, 0 for saved
-void save_keystroke(char key_press, int new_or_saved){
-
-	int col, row;
-
-	if(new_or_saved == 1){
-		col = (initial_x-25)/25;
-		row = (initial_y-25)/25;
-	}else{
-		col = (xpos-25)/25;
-		row = (ypos-25)/25;
-	}
-	
-	int len = Icons[row][col].text_size;
-	int text_length;
-
-	// Backspace
-	if ( key_press == 8){
-		if(len!=0){
-			Icons[row][col].text_size -= 1;
-		}
-		
-		return;
-	}
-
-	// Determine length of current text and whether we need more space
-	if (Icons[row][col].text == NULL){
-		text_length = 0;
-	} else {
-		text_length = strlen(Icons[row][col].text);
-	}
-
-	// Need more space
-	if (text_length >= len ){
-
-		char* more_numbers = (char *)realloc(Icons[row][col].text, (len+1) * sizeof(char));
-
-		if (more_numbers != NULL)
-		{
-			Icons[row][col].text = more_numbers;
-			Icons[row][col].text[len] = key_press;
-			Icons[row][col].text_size += 1;
-		}
-		else
-		{
-			// free(more_numbers);
-			puts("Error (re)allocating memory");
-			exit(1);
-		}
-	}
-
-	// Don't need more space
-	else {
-		Icons[row][col].text[len] = key_press;
-		Icons[row][col].text_size += 1;
-	}
-
-	
-	// printf("Row: %d, Col: %d\n", row, col);
-	// for(int i = 0; i < Icons[row][col].text_size; i++){
-	// 	printf("%d ", Icons[row][col].text[i]);
-	// }
-	// printf("\n");
-	
 }
