@@ -538,7 +538,16 @@ int main(void)
 				// Plot the new character
 				if(plot_char(test_x, test_y, new_char)){
 
-					// Save the new character
+					if(!(test_x == 6 && test_y == 8)){	
+						if(test_x == 6 && test_y != 8){
+							test_x = 60;
+							test_y -= 1;
+						}
+						else{
+							test_x -= 1;
+						}				
+					}
+				
 					save_keystroke(new_char, type_of_file);
 
 					if(new_char != 13){// Enter
@@ -555,6 +564,8 @@ int main(void)
 							}
 						}
 					}
+					//}
+					
 					
 					
 					byte1 = byte2 = byte3 = 1;
@@ -1501,7 +1512,9 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		switch(b3){
 			case 0x29: ASCII_code = 32; ready_for_next_character = false; break;		// SPACE
 			case 0x5a: ASCII_code = 13; ready_for_next_character = false; break;		// ENTER
-			case 0x66: ASCII_code = 8; test_x-=1; ready_for_next_character = false; break;	// Backspace
+			case 0x66: ASCII_code = 8;  ready_for_next_character = false; 				// Backspace
+				
+				break;	
 				
 					
 		}
@@ -1559,6 +1572,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 			case 0x4a:	ready_for_next_character = true; break;
 			case 0x29:  ready_for_next_character = true; break;
 			case 0x5a:  ready_for_next_character = true; break;
+			case 0x66:  ready_for_next_character = true; break;
 		}
 	}
 	return ASCII_code;
@@ -1581,8 +1595,11 @@ void save_keystroke(char key_press, int new_or_saved){
 	int text_length;
 
 	// Backspace
-	if ( (len!=0) && key_press == 8){
-		Icons[row][col].text_size -= 1;
+	if ( key_press == 8){
+		if(len!=0){
+			Icons[row][col].text_size -= 1;
+		}
+		
 		return;
 	}
 
