@@ -533,16 +533,18 @@ int main(void)
 
 				if(plot_char(test_x, test_y, new_char)){
 					save_keystroke(new_char, type_of_file);
-	
-					if(test_x > 61){
-						if(test_y <= 49){
-							test_x = 6;
-							test_y+=1;
+					if(new_char != 13){// Enter
+						if(test_x > 60){
+							if(test_y <= 49){
+								test_x = 6;
+								test_y+=2;
+							}
+							
+						}else{
+							test_x += 1;
 						}
-						
-					}else{
-						test_x += 1;
 					}
+					
 					
 					byte1 = byte2 = byte3 = 1;
 				}
@@ -599,26 +601,31 @@ void display_file(){
 
 	int col = (xpos-25)/25;
 	int row = (ypos-25)/25;
-	
+	/*
 	printf("Row: %d, Col: %d\n", row, col);
 	for(int i = 0; i < Icons[row][col].text_size; i++){
 		printf("%d ", Icons[row][col].text[i]);
 	}
 	printf("\n");	
-
+	*/
 	for (int i=0; i < Icons[row][col].text_size; i++){
 		plot_char(test_x, test_y, Icons[row][col].text[i]);
-		if(test_x > 61){
-			if(test_y <= 49){
-				test_x = 6;
-				test_y+=1;
+		if(Icons[row][col].text[i] != 13){
+			if(test_x > 60){
+				if(test_y <= 49){
+					test_x = 6;
+					test_y+=2;
+				}
+				
+			}else{
+				test_x += 1;
 			}
-			
-		}else{
-			test_x += 1;
 		}
 		
+		
 	}
+
+	
 }
 
 void move_button_outline(int b1, int b2, int b3){
@@ -1317,8 +1324,13 @@ void clear_char_buffer()
 
 bool plot_char(int x, int y, uint8_t letter)
 {
-	if(letter == 1){
+	if(letter == 0 ){
 		return false;
+	}
+	if(letter == 13){
+		test_y += 2;
+		test_x = 6;
+		return true;
 	}
 
 	volatile uint8_t *one_char_address;
@@ -1357,7 +1369,7 @@ void HEX_PS2(int b1, int b2, int b3) {
 }
 
 uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
-	uint8_t ASCII_code = 1;
+	uint8_t ASCII_code = 0;
 
 	if(b2 != 0xf0 &&  ready_for_next_character){
 		if(shift_key){							// Purely shift keys
@@ -1472,7 +1484,10 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		}
 		// Values not sensitive to shift,alt,caps,ctrl
 		switch(b3){
-			case 0x29: ASCII_code = 32; test_x+=1; ready_for_next_character = false; break;	// SPACE
+			case 0x29: ASCII_code = 32; ready_for_next_character = false; break;		// SPACE
+			case 0x5a: ASCII_code = 13; ready_for_next_character = false; break;		// ENTER
+				
+					
 		}
 		
 		
@@ -1526,6 +1541,8 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 			case 0x41:	ready_for_next_character = true; break;
 			case 0x49:	ready_for_next_character = true; break;
 			case 0x4a:	ready_for_next_character = true; break;
+			case 0x29:  ready_for_next_character = true; break;
+			case 0x5a:  ready_for_next_character = true; break;
 		}
 	}
 	return ASCII_code;
@@ -1574,10 +1591,11 @@ void save_keystroke(char key_press, int new_or_saved){ // 1 for new, 0 for saved
 		Icons[row][col].text[curr_file.text_size] = key_press;
 	}
 	Icons[row][col].text_size += 1;
-
+	/*
 	printf("Row: %d, Col: %d\n", row, col);
 	for(int i = 0; i < Icons[row][col].text_size; i++){
 		printf("%d ", Icons[row][col].text[i]);
 	}
-	printf("\n");	
+	printf("\n");
+	*/	
 }
