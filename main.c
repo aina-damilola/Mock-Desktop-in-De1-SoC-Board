@@ -534,23 +534,24 @@ int main(void)
 		
 				// Get the character typed
 				char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
-
+				
+				if(!(test_x == 6 && test_y == 8) && new_char == 8){	
+					if(test_x == 6 && test_y != 8){
+						test_x = 60;
+						test_y -= 1;
+					}
+					else{
+						test_x -= 1;
+					}				
+				}
 				// Plot the new character
 				if(plot_char(test_x, test_y, new_char)){
 
-					if(!(test_x == 6 && test_y == 8)){	
-						if(test_x == 6 && test_y != 8){
-							test_x = 60;
-							test_y -= 1;
-						}
-						else{
-							test_x -= 1;
-						}				
-					}
+					
 				
 					save_keystroke(new_char, type_of_file);
 
-					if(new_char != 13){// Enter
+					if(new_char != 13){ // Enter
 						if(test_x > 60){
 							if(test_y <= 49){
 								test_x = 6;
