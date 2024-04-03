@@ -82,7 +82,7 @@ void delete_text_editor();
 short int save_pixel(int, int);
 
 uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3);
-void save_keystroke(char key_press, int file_ID);
+void save_keystroke(char key_press, int new_or_saved);
 void display_file();
 
 //Global variables
@@ -146,6 +146,7 @@ bool ready_for_next_character = false;
 
 int test_x = 6;
 int test_y = 8;
+int type_of_file;
 
 int byte1 = 0, byte2 = 0, byte3 = 0;
 
@@ -531,7 +532,7 @@ int main(void)
 				char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
 
 				if(plot_char(test_x, test_y, new_char)){
-					save_keystroke(new_char, 0);
+					save_keystroke(new_char, type_of_file);
 	
 					if(test_x > 61){
 						if(test_y <= 49){
@@ -565,6 +566,7 @@ int main(void)
 					draw_text_editor();
 					in_screen_editor = true;
 					typing = true;
+					type_of_file = 1;
 				}
 				draw_screen = false;
 				button_posit = 0;
@@ -573,9 +575,10 @@ int main(void)
 				delete_square(xpos, ypos, xpos_2,  ypos_2, 15);
 				draw_text_editor();
 				display_file();
+				type_of_file = 0;
 				in_screen_editor = true;
 				typing = true;
-				button_posit = 1;
+				button_posit = 0;
 				draw_screen = false;
 			}
 		}
@@ -604,7 +607,7 @@ void display_file(){
 	printf("\n");	
 
 	for (int i=0; i < Icons[row][col].text_size; i++){
-		
+		plot_char(test_x, test_y, Icons[row][col].text[i]);
 		if(test_x > 61){
 			if(test_y <= 49){
 				test_x = 6;
@@ -614,7 +617,7 @@ void display_file(){
 		}else{
 			test_x += 1;
 		}
-		plot_char(test_x, test_y, Icons[row][col].text[i]);
+		
 	}
 }
 
@@ -682,7 +685,10 @@ void move_button_outline(int b1, int b2, int b3){
 		else if(button_posit == 1){
 			clear_char_buffer();
 			delete_text_editor();
-			draw_icon(file_icon);
+			if(type_of_file == 1){
+				draw_icon(file_icon);
+			}
+			
 			test_x = 6;
 			test_y = 8;
 			in_screen_editor = false;
@@ -1522,13 +1528,18 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 	return ASCII_code;
 }
 
-void save_keystroke(char key_press, int file_ID){
+void save_keystroke(char key_press, int new_or_saved){ // 1 for new, 0 for saved
 
-	int col = (initial_x-25)/25;
-	int row = (initial_y-25)/25;
+	int col, row;
 
+	if(new_or_saved == 1){
+		col = (initial_x-25)/25;
+		row = (initial_y-25)/25;
+	}else{
+		col = (xpos-25)/25;
+		row = (ypos-25)/25;
+	}
 	
-
 	struct placeholder curr_file = Icons[row][col];
 	int len = curr_file.text_size;
 	int text_length;
