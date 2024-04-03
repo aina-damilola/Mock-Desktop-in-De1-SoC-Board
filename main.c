@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -521,6 +522,8 @@ int main(void)
 				move_outline(byte1, byte2, byte3);
 			}
 		}
+
+		// In text editor
 		else if(in_screen_editor){
 			if(typing){
 				if(byte2 == (int)0xe0 && byte3 == 0x75){
@@ -529,10 +532,15 @@ int main(void)
 					typing = false;
 				}
 		
+				// Get the character typed
 				char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
 
+				// Plot the new character
 				if(plot_char(test_x, test_y, new_char)){
+
+					// Save the new character
 					save_keystroke(new_char, type_of_file);
+
 					if(new_char != 13){// Enter
 						if(test_x > 60){
 							if(test_y <= 49){
@@ -541,7 +549,10 @@ int main(void)
 							}
 							
 						}else{
-							test_x += 1;
+							// Not backspace
+							if (new_char != 8){
+								test_x += 1;
+							}
 						}
 					}
 					
@@ -1334,10 +1345,14 @@ bool plot_char(int x, int y, uint8_t letter)
 	}
 
 	volatile uint8_t *one_char_address;
-
 	one_char_address = char_buffer_start + (y << 7) + x;
 
-	*one_char_address = letter;
+	// Backspace
+	if (letter == 8){
+		*one_char_address = 0;
+	} else {
+		*one_char_address = letter;
+	}
 
 	return true;
 }
@@ -1486,6 +1501,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		switch(b3){
 			case 0x29: ASCII_code = 32; ready_for_next_character = false; break;		// SPACE
 			case 0x5a: ASCII_code = 13; ready_for_next_character = false; break;		// ENTER
+			case 0x66: ASCII_code = 8; test_x-=1; ready_for_next_character = false; break;	// Backspace
 				
 					
 		}
@@ -1548,7 +1564,8 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 	return ASCII_code;
 }
 
-void save_keystroke(char key_press, int new_or_saved){ // 1 for new, 0 for saved
+// 1 for new, 0 for saved
+void save_keystroke(char key_press, int new_or_saved){
 
 	int col, row;
 
@@ -1560,24 +1577,32 @@ void save_keystroke(char key_press, int new_or_saved){ // 1 for new, 0 for saved
 		row = (ypos-25)/25;
 	}
 	
-	struct placeholder curr_file = Icons[row][col];
-	int len = curr_file.text_size;
+	int len = Icons[row][col].text_size;
 	int text_length;
 
-	if (curr_file.text == NULL){
-		text_length = 0;
-	} else {
-		text_length = strlen(curr_file.text);
+	// Backspace
+	if ( (len!=0) && key_press == 8){
+		Icons[row][col].text_size -= 1;
+		return;
 	}
 
+	// Determine length of current text and whether we need more space
+	if (Icons[row][col].text == NULL){
+		text_length = 0;
+	} else {
+		text_length = strlen(Icons[row][col].text);
+	}
+
+	// Need more space
 	if (text_length >= len ){
 
-		char* more_numbers = (char *)realloc(curr_file.text, (len+1) * sizeof(char));
+		char* more_numbers = (char *)realloc(Icons[row][col].text, (len+1) * sizeof(char));
 
 		if (more_numbers != NULL)
 		{
 			Icons[row][col].text = more_numbers;
-			Icons[row][col].text[curr_file.text_size] = key_press;
+			Icons[row][col].text[len] = key_press;
+			Icons[row][col].text_size += 1;
 		}
 		else
 		{
@@ -1587,15 +1612,17 @@ void save_keystroke(char key_press, int new_or_saved){ // 1 for new, 0 for saved
 		}
 	}
 
+	// Don't need more space
 	else {
-		Icons[row][col].text[curr_file.text_size] = key_press;
+		Icons[row][col].text[len] = key_press;
+		Icons[row][col].text_size += 1;
 	}
-	Icons[row][col].text_size += 1;
-	/*
-	printf("Row: %d, Col: %d\n", row, col);
-	for(int i = 0; i < Icons[row][col].text_size; i++){
-		printf("%d ", Icons[row][col].text[i]);
-	}
-	printf("\n");
-	*/	
+
+	
+	// printf("Row: %d, Col: %d\n", row, col);
+	// for(int i = 0; i < Icons[row][col].text_size; i++){
+	// 	printf("%d ", Icons[row][col].text[i]);
+	// }
+	// printf("\n");
+	
 }
