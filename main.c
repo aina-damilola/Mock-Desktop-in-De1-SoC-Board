@@ -583,6 +583,8 @@ int main(void)
 		}
 
 		if(byte3 == (int)0x5a && byte2 != (int)0xf0 && draw_screen && !in_screen_editor){
+			test_x = 6;
+			test_y = 8;
 			if(in_taskbar){
 				int app_number = (xpos_task-40)/25;
 				if(app_number == 0){  // text_editor
@@ -590,7 +592,7 @@ int main(void)
 					
 					draw_text_editor();
 					in_screen_editor = true;
-					typing = true;
+					typing = false;
 					type_of_file = 1;
 				}
 				draw_screen = false;
@@ -602,7 +604,7 @@ int main(void)
 				display_file();
 				type_of_file = 0;
 				in_screen_editor = true;
-				typing = true;
+				typing = false;
 				button_posit = 0;
 				draw_screen = false;
 			}
