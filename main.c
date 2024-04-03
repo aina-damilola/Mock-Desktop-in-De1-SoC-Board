@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #define PRE_DOWNLOADED_APPS 3
 
@@ -81,6 +82,8 @@ void delete_text_editor();
 short int save_pixel(int, int);
 
 uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3);
+void save_keystroke(char key_press, int file_ID);
+void display_file();
 
 //Global variables
 volatile int pixel_buffer_start;
@@ -567,7 +570,13 @@ int main(void)
 				button_posit = 0;
 			}
 			else if(!in_taskbar){
-				// Open file and show data
+				delete_square(xpos, ypos, xpos_2,  ypos_2, 15);
+				draw_text_editor();
+				display_file();
+				in_screen_editor = true;
+				typing = true;
+				button_posit = 1;
+				draw_screen = false;
 			}
 		}
 		if(byte2 == (int)0xf0){
@@ -576,12 +585,37 @@ int main(void)
 			}
 		}
 
-
-		//plot_char(test_x, test_y, 65);
     }
 
 
 	return 0;
+}
+
+void display_file(){
+	
+
+	int col = (xpos-25)/25;
+	int row = (ypos-25)/25;
+	
+	printf("Row: %d, Col: %d\n", row, col);
+	for(int i = 0; i < Icons[row][col].text_size; i++){
+		printf("%d ", Icons[row][col].text[i]);
+	}
+	printf("\n");	
+
+	for (int i=0; i < Icons[row][col].text_size; i++){
+		
+		if(test_x > 61){
+			if(test_y <= 49){
+				test_x = 6;
+				test_y+=1;
+			}
+			
+		}else{
+			test_x += 1;
+		}
+		plot_char(test_x, test_y, Icons[row][col].text[i]);
+	}
 }
 
 void move_button_outline(int b1, int b2, int b3){
@@ -642,81 +676,22 @@ void move_button_outline(int b1, int b2, int b3){
 			delete_text_editor();
 			in_screen_editor = false;
 			draw_screen = false;
+			test_x = 6;
+			test_y = 8;
 		}
 		else if(button_posit == 1){
 			clear_char_buffer();
 			delete_text_editor();
 			draw_icon(file_icon);
+			test_x = 6;
+			test_y = 8;
 			in_screen_editor = false;
 			draw_screen = false;
 		}
 	}
 
 }
-/*
-void draw_text_editor(){
-	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-	int count = 0;
-	for(int x = 20; x < 250; x++){
-		for(int y = 20; y < 200; y++){
-			prev[count] = save_pixel(x, y);
-			count++;
-			if(x < 22 || x > 247 || y < 30 || y > 197){
-				plot_pixel(x, y, 0b0111101111001111);
-			}
-			else{
-				plot_pixel(x, y, 0b1111111111011111);
-			}
-			if(y > 22 && y < 28){
-				if(x < 245 && x > 240){
-					plot_pixel(x, y, 0b1111100000000000);
-				}
-			}
-			if(y > 22 && y < 28){
-				if(x < 235 && x > 230){
-					plot_pixel(x, y, 0b11111000000);
-				}
-			}
-			if(y > 22 && y < 28){
-				if(x < 225 && x > 220){
-					plot_pixel(x, y, 0b11111);
-				}
-			}
-		}
-	}
-	wait_for_vsync();
-	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-	count = 0;
-	for(int x = 20; x < 250; x++){
-		for(int y = 20; y < 200; y++){
-			count++;
-			if(x < 22 || x > 247 || y < 30 || y > 197){
-				plot_pixel(x, y, 0b0111101111001111);
-			}
-			else{
-				plot_pixel(x, y, 0b1111111111011111);
-			}
-			if(y > 22 && y < 28){
-				if(x < 245 && x > 240){
-					plot_pixel(x, y, 0b1111100000000000);
-				}
-			}
-			if(y > 22 && y < 28){
-				if(x < 235 && x > 230){
-					plot_pixel(x, y, 0b11111000000);
-				}
-			}
-			if(y > 22 && y < 28){
-				if(x < 225 && x > 220){
-					plot_pixel(x, y, 0b11111);
-				}
-			}
-		}
-	}
-	wait_for_vsync();
-	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-}
-*/
+
 void draw_text_editor(){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
@@ -1064,21 +1039,17 @@ void draw_icon(short int image[]){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
 
-	if (initial_x >= 25 * 11)
-	{
-		return;
-	}
 
-	for (int y = initial_y; y < initial_y + 15; y++)
-	{
-		for (int x = initial_x; x < initial_x + 15; x++)
-		{
+	if(initial_x >= 25*11){return;}
+	
+	for(int y = initial_y; y < initial_y +15; y++){
+		for(int x = initial_x; x < initial_x +15; x++){
 			plot_pixel(x, y, image[count]);
 			count++;
+			
 		}
 	}
-	if (!check)
-	{
+	if(!check){
 		check = !check;
 		wait_for_vsync();
 		pixel_buffer_start = *(pixel_ctrl_ptr + 1);
@@ -1089,6 +1060,9 @@ void draw_icon(short int image[]){
 	if(initial_y > 25*7){
 		initial_y = 25;
 		initial_x += 25;
+	}else{
+		initial_y += 25;
+
 	}
 	
 	
@@ -1548,18 +1522,14 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 	return ASCII_code;
 }
 
-
 void save_keystroke(char key_press, int file_ID){
 
-	// temp
-	file_ID = 0;
+	int col = (initial_x-25)/25;
+	int row = (initial_y-25)/25;
 
-	// Decode file_ID
-	int col = file_ID / 8;
-	// int row = file_ID % 8;
-	int row = 0;
+	
 
-	struct placeholder curr_file = Icons[row][file_ID];
+	struct placeholder curr_file = Icons[row][col];
 	int len = curr_file.text_size;
 	int text_length;
 
@@ -1575,8 +1545,8 @@ void save_keystroke(char key_press, int file_ID){
 
 		if (more_numbers != NULL)
 		{
-			Icons[row][file_ID].text = more_numbers;
-			Icons[row][file_ID].text[curr_file.text_size] = key_press;
+			Icons[row][col].text = more_numbers;
+			Icons[row][col].text[curr_file.text_size] = key_press;
 		}
 		else
 		{
@@ -1587,13 +1557,13 @@ void save_keystroke(char key_press, int file_ID){
 	}
 
 	else {
-		Icons[row][file_ID].text[curr_file.text_size] = key_press;
+		Icons[row][col].text[curr_file.text_size] = key_press;
 	}
-	Icons[row][file_ID].text_size += 1;
+	Icons[row][col].text_size += 1;
 
-	// for ()
-	for (int k=0; k < Icons[row][file_ID].text_size; k++){
-		printf("%c", Icons[row][file_ID].text[k]);
+	printf("Row: %d, Col: %d\n", row, col);
+	for(int i = 0; i < Icons[row][col].text_size; i++){
+		printf("%d ", Icons[row][col].text[i]);
 	}
-	
+	printf("\n");	
 }
