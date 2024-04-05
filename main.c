@@ -86,6 +86,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3);
 void save_keystroke(char key_press, int new_or_saved);
 void display_file();
 void file_return(bool save);
+void display_file_name_header();
 
 //Global variables
 volatile int pixel_buffer_start;
@@ -101,6 +102,8 @@ struct placeholder{
 	char* text;
     int text_size;
 	int prev_text_size;
+	char* file_name;
+	int file_name_size;
 };
 
 // Global arrays
@@ -432,6 +435,8 @@ int main(void)
 			Icons[i][j].text_size = 0;
 			Icons[i][j].prev_text = NULL;
 			Icons[i][j].prev_text_size = 0;
+			Icons[i][j].file_name = NULL;
+			Icons[i][j].file_name_size = 0;
 		}
 	}
 
@@ -608,26 +613,25 @@ int main(void)
 			}
 			else if(!in_taskbar){
 				bool continue_ = false;
-				for(int x = 0; x < 11; x++){
-					if(continue_){
-						break;
-					}
-					for(int y = 0; y < 8; y++){
-						if(Icons[(xpos-25)/25][(ypos-25)/25].file_presence == 1){
-							continue_ = true;
-							break;
-						}
-					}
+			
+				if(Icons[(xpos-25)/25][(ypos-25)/25].file_presence == 1){
+					continue_ = true;
+			
 				}
+					
+				
 				if(continue_){
 					delete_square(xpos, ypos-1, xpos_2,  ypos_2, 15);
 					draw_text_editor();
 					display_file();
-					type_of_file = 0;
+					display_file_name_header();
+
 					in_screen_editor = true;
 					typing = true;
-					button_posit = 0;
 					draw_screen = false;
+
+					type_of_file = 0;
+					button_posit = 0;
 				}
 				
 			}
@@ -643,11 +647,9 @@ int main(void)
 		}
 
 		if(byte3 == 0x66 && byte2 != 0xf0 && !in_taskbar && ready_to_delete_file && !in_screen_editor){
-			printf("\n%d",Icons[(xpos-25)/25][(ypos-25)/25].file_presence);
-			//printf("\n%d",Icons[(xpos-25)/25][(ypos-25)/25].file_presence);
+			
 			if(Icons[(xpos-25)/25][(ypos-25)/25].file_presence == 1){
-				printf("\n%d",Icons[(xpos-25)/25][(ypos-25)/25].text_size);
-				//printf("\n%d",Icons[(xpos-25)/25][(ypos-25)/25].text_size);
+				
 				delete_icon(file_icon, xpos, ypos);	
 				//printf("x: %d, y: %d", xpos, ypos);
 				ready_to_delete_file = false;
@@ -662,10 +664,63 @@ int main(void)
 	return 0;
 }
 
+void display_file_name_header(){
+	int y = 6;
+	int x = 20;
+	plot_char(x,y,'F');
+	x+=1;
+	plot_char(x,y,'I');
+	x+=1;
+	plot_char(x,y,'L');
+	x+=1;
+	plot_char(x,y,'E');
+	x+=1;
+	plot_char(x,y,'-');
+	x+=1;
+	plot_char(x,y,'N');
+	x+=1;
+	plot_char(x,y,'A');
+	x+=1;
+	plot_char(x,y,'M');
+	x+=1;
+	plot_char(x,y,'E');
+	x+=1;
+	plot_char(x,y,':');
+	x+=1;
+	
+	//printf("%d\n",Icons[(xpos-25)/25][(ypos-25)/25].file_name_size);
+	for(int i = 0; i < Icons[(xpos-25)/25][(ypos-25)/25].file_name_size; i++){
+		x+=1;
+		plot_char(x,y,Icons[(xpos-25)/25][(ypos-25)/25].file_name[i]);
+	}
+}
+
 void file_return(bool save){ // if true, save the file, if false, dont save the file
 	if(save){
 		Icons[col][row].text_size = Icons[col][row].prev_text_size;
 		Icons[col][row].text = Icons[col][row].prev_text;
+
+		
+		if(Icons[col][row].text_size <= 5){
+			Icons[col][row].file_name_size = Icons[col][row].text_size;
+
+			Icons[col][row].file_name = (char *)malloc(Icons[col][row].file_name_size * sizeof(char));
+			for(int i = 0; i < Icons[col][row].file_name_size; i++){
+				Icons[col][row].file_name[i] = Icons[col][row].text[i];
+			}
+		}
+		else{
+			Icons[col][row].file_name = (char *)malloc(8 * sizeof(char));
+			Icons[col][row].file_name_size = 8;
+			for(int i = 0; i < 5; i++){
+				Icons[col][row].file_name[i] = Icons[col][row].text[i];
+			}
+			Icons[col][row].file_name[5] = '.';
+			Icons[col][row].file_name[6] = '.';
+			Icons[col][row].file_name[7] = '.';
+		}
+		
+		
 	}
 	else{
 		Icons[col][row].prev_text_size = Icons[col][row].text_size;
@@ -844,7 +899,7 @@ void move_button_outline(int b1, int b2, int b3){
 		
 	}
 	if(b3 == (int)0x5a && b2 != (int)0xf0 && draw_screen && in_screen_editor){
-		if(button_posit == 2){
+		if(button_posit == 2){ // RED button
 			file_return(false);
 			clear_char_buffer();
 			delete_text_editor();
@@ -854,7 +909,7 @@ void move_button_outline(int b1, int b2, int b3){
 			test_y = 8;
 			
 		}
-		else if(button_posit == 1){
+		else if(button_posit == 1){	// GREEN button
 			file_return(true);
 			clear_char_buffer();
 			delete_text_editor();
@@ -1301,17 +1356,11 @@ void delete_icon(short int image[], int _x, int _y)
 {
 	volatile int *pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = _x + (320*_y);
-/*
-	printf("row: %d, col: %d\n",(_y-25)/25 ,(_x-25)/25);
-	for(int i = 0; i < Icons[(_x-25)/25][(_y-25)/25].prev_text_size; i++){
-		printf("\n%c",Icons[(_x-25)/25][(_y-25)/25].prev_text[i]);
-	}
-*/
-	
-	//free(Icons[(_x-25)/25][(_y-25)/25].prev_text);
+
 	
 	Icons[(_x-25)/25][(_y-25)/25].prev_text = NULL;
 	Icons[(_x-25)/25][(_y-25)/25].prev_text_size = 0;
+	Icons[(_x-25)/25][(_y-25)/25].file_name = NULL;
 	Icons[(_x-25)/25][(_y-25)/25].file_presence = 0;
 	Icons[(_x-25)/25][(_y-25)/25].text = NULL;
 	Icons[(_x-25)/25][(_y-25)/25].text_size = 0;
