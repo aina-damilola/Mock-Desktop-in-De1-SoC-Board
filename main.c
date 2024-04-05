@@ -979,90 +979,102 @@ void move_outline(int b1, int b2, int b3){
 		return;
 	}
 	else if(move_outline_bar && b2 == (int)0xe0){ 
-		if(b3 == (int)0x72){	// down arrow
-			if(ypos >= (25*8)){
-				delete_square(xpos, ypos-1, xpos_2, ypos_2, 15);
-				
-				if(Icons[(xpos_task-40)/25][8].file_presence == 1){
-					in_taskbar = true;
-					draw_square(xpos_task, 225, xpos_task + 13, 238);
-					move_outline_bar = true;
-					return;
+		delete_square(xpos, ypos-1, xpos_2, ypos_2, 15);
+		bool found = false;
+
+		if(b3 == (int)0x72){	// DOWN arrow
+			for(int y = ypos+25; y <= (25*8); y += 25){
+				if(Icons[(xpos-25)/25][(y-25)/25].file_presence == 1){
+					found = true;
+					ypos = y;
+					ypos_2 = y + 15;
+					break;
 				}
-				else if(Icons[(xpos)/25][0].file_presence == 1){
-					xpos += 25;
-					ypos = 25;
-					xpos_2 += 25;
-					ypos_2 = 40;
-				}
-				draw_square(xpos, ypos-1, xpos_2, ypos_2);
 			}
-			else{
-				delete_square(xpos, ypos-1, xpos_2, ypos_2, 15);
-				if(Icons[(xpos-25)/25][ypos/25].file_presence == 1){
-					ypos += 25;
-					ypos_2 += 25;
-				}
-				else{
-					if(Icons[(xpos_task-40)/25][8].file_presence == 1){
-						in_taskbar = true;
-						draw_square(xpos_task, 225, xpos_task + 13, 238);
-						move_outline_bar = true;
-						return;
-					}
-				}
-				draw_square(xpos, ypos-1, xpos_2, ypos_2);
-				
+			if(!found){
+				in_taskbar = true;
+				draw_square(xpos_task, 225, xpos_task + 13, 238);
+				move_outline_bar = true;
+				return;
 			}
-			move_outline_bar = false;
-			
 		}
 		else if( b3 == (int)0x75){	// UP arrow
-			if(ypos <= 25){
-				delete_square(xpos, ypos-1, xpos_2, ypos_2, 15);
-				if(xpos > 25){
-					if(Icons[(xpos)/25][7].file_presence == 1){
-						ypos = 25*8;
-						ypos_2 = 15+(25*8);
-						xpos -= 25;
-						xpos_2 -= 25;
-					}
+			int y_start;
+			for(int x = xpos; x >= 25; x-=25){
+				
+				if(found){
+					break;
 				}
-				draw_square(xpos, ypos-1, xpos_2, ypos_2);
-			}
-			else{
-				delete_square(xpos, ypos-1, xpos_2, ypos_2, 15);
-				if(Icons[(xpos-25)/25][(ypos-25-25)/25].file_presence == 1){
-					ypos -= 25;
-					ypos_2 -= 25;
-				}
-				draw_square(xpos, ypos-1, xpos_2, ypos_2);
-			}
-			move_outline_bar = false;
-		}
-		else if(b3 == (int)0x74){
-			if(!(xpos >= 25*10)){	// RIGHT arrow
-				delete_square(xpos, ypos-1, xpos_2, ypos_2, 15);
-				if(Icons[(xpos)/25][(ypos-25)/25].file_presence == 1){
-					xpos += 25;
-					xpos_2 += 25;
-				}
-				draw_square(xpos, ypos-1, xpos_2, ypos_2);
-			}
-			move_outline_bar = false;
-		}
-		else if(b3 == (int)0x6b){
-			if(!(xpos <= 25)){	// LEFT arrow
-				delete_square(xpos, ypos-1, xpos_2, ypos_2, 15);
-				if(Icons[(xpos-25-25)/25][(ypos-25)/25].file_presence == 1){
-					xpos -= 25;
-					xpos_2 -= 25;
+				y_start = 25*8;
+				if(x == xpos){
+					y_start = ypos-25;
 				}
 				
-				draw_square(xpos, ypos-1, xpos_2, ypos_2);
+				for(int y = y_start; y >= 25; y -= 25){
+					if(Icons[(x-25)/25][(y-25)/25].file_presence == 1){
+						found = true;
+						ypos = y;
+						ypos_2 = y + 15;
+						xpos = x;
+						xpos_2 = x + 15;
+						break;
+					}
+				}
 			}
-			move_outline_bar = false;
 		}
+		else if(b3 == (int)0x74){ // RIGHT arrow
+			int x_start;
+			for(int y = ypos; y <= (25*8); y += 25){
+
+				if(found){
+					break;
+				}
+				x_start = 25;
+				if(y == ypos){
+					x_start = xpos + 25;
+				}
+
+				for(int x = x_start; x <= (25*11); x += 25){
+					if(Icons[(x-25)/25][(y-25)/25].file_presence == 1){
+						found = true;
+						ypos = y;
+						ypos_2 = y + 15;
+						xpos = x;
+						xpos_2 = x + 15;
+						break;
+					}
+				}
+			}
+			
+		}
+		else if(b3 == (int)0x6b){ // LEFT arrow
+			int x_start;
+			for(int y = ypos; y >= 25; y -= 25){
+
+				if(found){
+					break;
+				}
+				x_start = 25*8;
+				if(y == ypos){
+					x_start = xpos - 25;
+				}
+
+				for(int x = x_start; x >= 25; x -= 25){
+					if(Icons[(x-25)/25][(y-25)/25].file_presence == 1){
+						found = true;
+						ypos = y;
+						ypos_2 = y + 15;
+						xpos = x;
+						xpos_2 = x + 15;
+						break;
+					}
+				}
+			}
+			
+		}
+
+		draw_square(xpos, ypos-1, xpos_2, ypos_2);
+		move_outline_bar = false;
 	}
 }
 
