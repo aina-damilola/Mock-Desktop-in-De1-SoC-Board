@@ -1949,24 +1949,26 @@ void draw_cursor(int misc, int xpos, int ypos){
 		return;
 	}
 
-	// Draw background at previous position
-	for (int x=0; x<=6; ++x){
-		for (int y=0; y<=10; ++y){
-			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y_prev + y) << 10) + ( (mouse_x_prev + x) << 1));
-			*one_pixel_address = prev_mouse_background[x][y];
-			// plot_pixel((mouse_x_prev + x), (mouse_y_prev + y), 0 );
-		}
-	}
+	save_old_bg_save_new_bg_before_mouse();
 
-	// Save background of new position
-	for (int x=0; x<=6; ++x){
-		for (int y=0; y<=10; ++y){
-			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y + y) << 10) + ( (mouse_x + x) << 1));
+	// // Draw background at previous position
+	// for (int x=0; x<=6; ++x){
+	// 	for (int y=0; y<=10; ++y){
+	// 		one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y_prev + y) << 10) + ( (mouse_x_prev + x) << 1));
+	// 		*one_pixel_address = prev_mouse_background[x][y];
+	// 		// plot_pixel((mouse_x_prev + x), (mouse_y_prev + y), 0 );
+	// 	}
+	// }
 
-			// prev_mouse_background[x][y] = save_pixel( (mouse_x + x), (mouse_y + y));
-			prev_mouse_background[x][y] = *one_pixel_address;
-		}
-	}
+	// // Save background of new position
+	// for (int x=0; x<=6; ++x){
+	// 	for (int y=0; y<=10; ++y){
+	// 		one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y + y) << 10) + ( (mouse_x + x) << 1));
+
+	// 		// prev_mouse_background[x][y] = save_pixel( (mouse_x + x), (mouse_y + y));
+	// 		prev_mouse_background[x][y] = *one_pixel_address;
+	// 	}
+	// }
 
 	
 	// Draw on current buffer :/
@@ -2004,6 +2006,30 @@ void draw_cursor(int misc, int xpos, int ypos){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 	*/
+}
+
+void save_old_bg_save_new_bg_before_mouse(){
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	volatile short int *one_pixel_address;
+
+	// Draw background at previous position
+	for (int x=0; x<=6; ++x){
+		for (int y=0; y<=10; ++y){
+			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y_prev + y) << 10) + ( (mouse_x_prev + x) << 1));
+			*one_pixel_address = prev_mouse_background[x][y];
+			// plot_pixel((mouse_x_prev + x), (mouse_y_prev + y), 0 );
+		}
+	}
+
+	// Save background of new position
+	for (int x=0; x<=6; ++x){
+		for (int y=0; y<=10; ++y){
+			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y + y) << 10) + ( (mouse_x + x) << 1));
+
+			// prev_mouse_background[x][y] = save_pixel( (mouse_x + x), (mouse_y + y));
+			prev_mouse_background[x][y] = *one_pixel_address;
+		}
+	}
 }
 
 // Draws a cursor icon at the given position on VGA
