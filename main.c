@@ -548,6 +548,30 @@ int main(void)
 				// Get the character typed
 				char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
 				
+				if(new_char == 19){
+					file_return(true);
+					clear_char_buffer();
+					delete_text_editor();
+					if(type_of_file == 1){
+						draw_icon(file_icon);
+					}
+					
+					test_x = 6;
+					test_y = 8;
+					in_screen_editor = false;
+					//draw_screen = false;
+					typing = false;
+				}
+				else if(new_char == 27){
+					file_return(false);
+					clear_char_buffer();
+					delete_text_editor();
+					in_screen_editor = false;
+					draw_screen = false;
+					test_x = 6;
+					test_y = 8;
+				}
+
 				if(!(test_x == 6 && test_y == 8) && new_char == 8){	
 					if(test_x == 6 && test_y != 8){
 						test_x = 60;
@@ -559,9 +583,6 @@ int main(void)
 				}
 				// Plot the new character
 				if(plot_char(test_x, test_y, new_char)){
-
-					
-				
 					save_keystroke(new_char, type_of_file);
 
 					if(new_char != 13){ // Enter
@@ -582,7 +603,7 @@ int main(void)
 					
 					
 					
-					byte1 = byte2 = byte3 = 1;
+					byte1 = byte2 = byte3 = 0;
 				}
 				
 				
@@ -859,7 +880,7 @@ void move_button_outline(int b1, int b2, int b3){
 	else if(move_button_outline_bar && b2 == (int)0xe0){ 
 		if(b3 == 0x72){ // DOWN arrow
 			typing = true;
-			byte1 = byte2 = byte3 = 1;
+			byte1 = byte2 = byte3 = 0;
 			delete_square_text_editor(230, 22, 235, 28, 5);
 			delete_square_text_editor(240, 22, 245, 28, 5);
 			delete_square_text_editor(220, 22, 225, 28, 5);
@@ -1580,7 +1601,7 @@ void clear_char_buffer(){
 }
 
 bool plot_char(int x, int y, uint8_t letter){
-	if(letter == 0 ){
+	if(letter == 0 || letter == 19 || letter == 27){
 		return false;
 	}
 	if(letter == 13){
@@ -1682,7 +1703,12 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 				case 0x4a:	ASCII_code = 47; ready_for_next_character = false; break;	// /
 			}
 		}
-		if(caps_lock || (shift_key && !caps_lock)){ // UPPERCASE
+		if(ctrl_key){
+			switch (b3){
+				case 0x1b:	ASCII_code = 19; ready_for_next_character = false; break;	// CTRL-S
+			}
+		}
+		else if(caps_lock || (shift_key && !caps_lock && !ctrl_key)){ // UPPERCASE
 			switch(b3){
 				case 0x1c:	ASCII_code = 65; ready_for_next_character = false; break;	// A
 				case 0x32:	ASCII_code = 66; ready_for_next_character = false; break;	// B
@@ -1712,7 +1738,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 				case 0x1a:	ASCII_code = 90; ready_for_next_character = false; break;	// Z
 			}
 		}
-		else if(!caps_lock || (shift_key && caps_lock)){ // LOWERCASE
+		else if(!caps_lock || (shift_key && caps_lock && !ctrl_key)){ // LOWERCASE
 			switch(b3){
 				case 0x1c:	ASCII_code = 97; ready_for_next_character = false; break;	// a
 				case 0x32:	ASCII_code = 98; ready_for_next_character = false; break;	// b
@@ -1746,9 +1772,8 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		switch(b3){
 			case 0x29: ASCII_code = 32; ready_for_next_character = false; break;		// SPACE
 			case 0x5a: ASCII_code = 13; ready_for_next_character = false; break;		// ENTER
-			case 0x66: ASCII_code = 8;  ready_for_next_character = false; 				// Backspace
-				
-				break;	
+			case 0x66: ASCII_code = 8;  ready_for_next_character = false; break;		// Backspace
+			case 0x76: ASCII_code = 27; ready_for_next_character = false; break;		// Escape
 				
 					
 		}
@@ -1807,6 +1832,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 			case 0x29:  ready_for_next_character = true; break;
 			case 0x5a:  ready_for_next_character = true; break;
 			case 0x66:  ready_for_next_character = true; break;
+			case 0x76:  ready_for_next_character = true; break;
 		}
 	}
 	return ASCII_code;
