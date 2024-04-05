@@ -54,7 +54,10 @@
 		dest = __builtin_rdctl(5); \
 	} while (0)
 
-// Function initialization
+/*
+	Function initializations
+*/
+
 void wait_for_vsync();
 void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
@@ -88,7 +91,14 @@ void display_file();
 void file_return(bool save);
 void display_file_name_header();
 
-//Global variables
+// Functions for mouse
+void draw_cursor(int, int, int);
+void draw_cursor_icon(int x, int y);
+
+/*
+	Global variables
+*/
+
 volatile int pixel_buffer_start;
 volatile int push_buttons = 0xFF200050;
 volatile int * char_ctrl_ptr = 0xFF203030;
@@ -120,9 +130,17 @@ int initial_x = 25;
 int highlight_x = 25;
 int highlight_y = 25;
 
-int mouse_data;
-int mouse_x = 50;
-int mouse_y = 50;
+// Mouse variables
+short int prev_mouse_background[7][11];
+
+int mouse_x = 0;
+int mouse_y = 0;
+
+int mouse_x_prev = 0;
+int mouse_y_prev = 0;
+
+int interrupt_mouse_data;
+int inter_byte1 = 0, inter_byte2 = 0, inter_byte3 = 0;
 
 int og_count = 0;
 int button_posit = 0;
@@ -428,6 +446,7 @@ const char text_editor[]  = {
 
 int main(void)
 {
+	// Initialize files 2d array
 	for (int i=0; i < 11; ++i){
 		for (int j=0; j<9; j++){
 			Icons[i][j].file_presence = 0;
@@ -441,10 +460,18 @@ int main(void)
 	}
 
 	volatile int *KEY_ptr = (int *)0xff200050;
+	volatile int *PS2_mouse_ptr = (int *)0xff200108;
 	volatile int *PS2_ptr = (int *)0xff200100;
-	*(KEY_ptr + 2) = 0b0011;
-	NIOS2_WRITE_IENABLE(0x2);
+
+	// Interrupts setup
+	*(KEY_ptr + 2) = 0b0011;	// Enable interrupt for KEYS
+	*(PS2_mouse_ptr + 1) = 0b1;	 // Enable interrupt for PS2
+	NIOS2_WRITE_IENABLE(0x800002); // Enable interrupts for IRQ 1, 23
 	NIOS2_WRITE_STATUS(1);
+
+	// PS/2 port: IRQ 7
+	// PS/2 port dual: IRQ 23
+
 
 	int PS2_data, RVALID, RAVAIL;
 	
@@ -480,6 +507,12 @@ int main(void)
 
 	clear_char_buffer();
 	
+	// Initialize prev_mouse_background 2d array
+	for (int x=0; x <=6; ++x){
+		for (int y=0; y<=10; ++y){
+			prev_mouse_background[x][y] = save_pixel(x,y);
+		}
+	}
 	
     while (1)
     {
@@ -1475,14 +1508,43 @@ void clear_screen()
 
 void interrupt_handler(void)
 {
+	volatile int * PS2_mouse_ptr = (int *)0xff200108;
 	int ipending;
 	NIOS2_READ_IPENDING(ipending);
 	if (ipending & 0x2)
 	{
 		pushbutton_ISR();
 	}
+	else if (ipending & 0x800000)	// IRQ 23	
+	{
+		int PS2_data, RVALID;
+		
+		PS2_data = *(PS2_mouse_ptr); // read the Data register in the PS/2 port
+		RVALID = PS2_data & 0x8000; // extract the RVALID field
+		//RAVAIL = PS2_data & 0xffff0000; // extract RAVAIL field
+		
+		if (RVALID != 0) {
+			/* shift the next data byte into the display */
+			interrupt_mouse_data++;
+			inter_byte1 = inter_byte2;
+			inter_byte2 = inter_byte3;
+			inter_byte3 = PS2_data & 0xFF;
+			HEX_PS2(inter_byte1, inter_byte2, inter_byte3);
+		}
+		if(inter_byte2 == (int)0xaa && inter_byte3 == (int)0x00){
+			
+			*(PS2_mouse_ptr) = 0xF4;
+			// mouse_data = -1;
+		}
+		if(interrupt_mouse_data == 3){
+			interrupt_mouse_data = 0;
+			HEX_PS2(inter_byte1, inter_byte2, inter_byte3);
+			
+			draw_cursor(inter_byte1, inter_byte2, inter_byte3);
+
+		}
+	}
 	// else, ignore the interrupt
-	return;
 }
 
 void pushbutton_ISR(void){
@@ -1836,4 +1898,228 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		}
 	}
 	return ASCII_code;
+}
+
+// Updates cursor position according to new mouse input data
+// Calls draw_cursor_icon() to draw the mouse icon at updated cursor position
+void draw_cursor(int misc, int xpos, int ypos){
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	volatile short int *one_pixel_address;
+
+	// Screen boundary coordinates
+	int screen_max_x = 317;
+	int screen_max_y = 239;
+
+	int cursor_max_x = screen_max_x - 6;	// 6 is width of mouse cursor
+	int cursor_max_y = screen_max_y - 10;	// 10 is height of mouse cursor;
+
+	// Take new mouse input and add it to current mouse position
+	if((misc & 0b10000) == 0b10000){	// negaitve x
+		mouse_x -= (256 - xpos);
+	}
+	else{
+		mouse_x += (xpos);
+	}
+	if((misc & 0b100000) == 0b100000){ // negative y, (increment mouse_y in VGA on board), invert for cpulator
+		mouse_y += (256 - ypos);
+	}
+	else{
+		mouse_y -= (ypos);
+	}
+
+	// If mouse moved out of bounds, take the boundary coordinate
+    if (mouse_x > 317){
+		mouse_x = 317;
+	} else if (mouse_x < 0){
+		mouse_x = 0;
+	}
+
+	if (mouse_y > 239){
+		mouse_y = 239;
+	} else if (mouse_y < 0 ){
+		mouse_y = 0;
+	}
+
+	// Displaying current mouse x position (for debugging)
+	// *(int*)(0xFF200000) = mouse_x;
+    // *(int*)(0xFF200000) += (mouse_y << 7);
+
+	// Mouse hit boundary, don't do anything
+	if (mouse_x == mouse_x_prev && mouse_y == mouse_y_prev){
+		return;
+	}
+
+	// Draw background at previous position
+	for (int x=0; x<=6; ++x){
+		for (int y=0; y<=10; ++y){
+			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y_prev + y) << 10) + ( (mouse_x_prev + x) << 1));
+			*one_pixel_address = prev_mouse_background[x][y];
+			// plot_pixel((mouse_x_prev + x), (mouse_y_prev + y), 0 );
+		}
+	}
+
+	// Save background of new position
+	for (int x=0; x<=6; ++x){
+		for (int y=0; y<=10; ++y){
+			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y + y) << 10) + ( (mouse_x + x) << 1));
+
+			// prev_mouse_background[x][y] = save_pixel( (mouse_x + x), (mouse_y + y));
+			prev_mouse_background[x][y] = *one_pixel_address;
+		}
+	}
+
+	
+	// Draw on current buffer :/
+	draw_cursor_icon(mouse_x, mouse_y);
+
+	// one_pixel_address = *(pixel_ctrl_ptr) + (mouse_y << 10) + (mouse_x << 1);
+	// *one_pixel_address = 60000;
+	
+	// Clear previous mouse position
+	// one_pixel_address = *(pixel_ctrl_ptr) + (mouse_y_prev << 10) + (mouse_x_prev << 1);
+	// *one_pixel_address = 0;
+	
+
+	// // Do the same on back buffer (for double buffering)
+	// one_pixel_address = pixel_buffer_start + (mouse_y << 10) + (mouse_x << 1);
+	// *one_pixel_address = 60000;
+
+	// one_pixel_address = pixel_buffer_start + (mouse_y_prev << 10) + (mouse_x_prev << 1);
+	// *one_pixel_address = 0;
+	
+
+	// Store current mouse position into mouse_prev variables
+	mouse_x_prev = mouse_x;
+	mouse_y_prev = mouse_y;
+	
+	/*
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	
+	
+	
+	plot_pixel(mouse_x,mouse_y, 60000);
+	
+	/*
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	*/
+}
+
+// Draws a cursor icon at the given position on VGA
+// Called by draw_cursor
+void draw_cursor_icon(int x_start, int y_start /*, volatile short int* one_pixel_address */){
+	volatile short int *one_pixel_address;
+    volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+
+	for (int x=0; x <= 6; ++x){
+		for (int y=0; y <= 10; ++y){
+            one_pixel_address = *(pixel_ctrl_ptr);	// Initial address
+
+			// Drawing according to coordinates
+			if (y==0){
+				if ( x==0 || x==1 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+                    *(int*)(0xFF200000) = x_start + x;
+				}
+			}
+			else if (y==1){		
+				if ( x==0 || x==2 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==1 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==2){		
+				if ( x==0 || x==3 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==1 || x==2 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==3){		
+				if ( x==0 || x==4 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==1 || x==2 || x==3 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==4){		
+				if ( x==0 || x==5 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==1 || x==2 || x==3 || x==4 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==5){		
+				if ( x==0 || x==6 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==1 || x==2 || x==3 || x==4 || x==5 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==6){		
+				if ( x==0 || x==5 || x==6 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==1 || x==2 || x==3 || x==4 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==7){		
+				if ( x==0 || x==2 || x==5 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==1 || x==3 || x==4 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==8){		
+				if ( x==0 || x==1 || x==3 || x==6 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==4 || x==5 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==9){		
+				if ( x==3 || x==6 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+				else if ( x==4 || x==5 ){	// White pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0xFFFF;	
+				}
+			}
+			else if (y==10){		
+				if ( x==4 || x==5 ){	// Black pixel
+					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
+					*one_pixel_address = 0;
+				}
+			}
+		}
+	}
 }
