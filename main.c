@@ -1992,9 +1992,11 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 void draw_cursor(int misc, int xpos, int ypos){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	volatile short int *one_pixel_address;
+	
+	bool hit_boundary = false;
 
 	// Screen boundary coordinates
-	int screen_max_x = 317;
+	int screen_max_x = 319;
 	int screen_max_y = 239;
 
 	int cursor_max_x = screen_max_x - 6;	// 6 is width of mouse cursor
@@ -2015,16 +2017,20 @@ void draw_cursor(int misc, int xpos, int ypos){
 	}
 
 	// If mouse moved out of bounds, take the boundary coordinate
-    if (mouse_x > 317){
-		mouse_x = 317;
+    if (mouse_x > cursor_max_x){
+		mouse_x = cursor_max_x;
+		hit_boundary = true;
 	} else if (mouse_x < 0){
 		mouse_x = 0;
+		hit_boundary = true;
 	}
 
-	if (mouse_y > 239){
-		mouse_y = 239;
+	if (mouse_y > cursor_max_y){
+		mouse_y = cursor_max_y;
+		hit_boundary = true;
 	} else if (mouse_y < 0 ){
 		mouse_y = 0;
+		hit_boundary = true;
 	}
 
 	// Displaying current mouse x position (for debugging)
@@ -2032,7 +2038,13 @@ void draw_cursor(int misc, int xpos, int ypos){
     // *(int*)(0xFF200000) += (mouse_y << 7);
 
 	// Mouse hit boundary, don't do anything
+	
+	/*
 	if (mouse_x == mouse_x_prev && mouse_y == mouse_y_prev){
+		return;
+	}*/
+	
+	if (hit_boundary){
 		return;
 	}
 
