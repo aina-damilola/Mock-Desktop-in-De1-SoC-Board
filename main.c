@@ -90,13 +90,17 @@ void save_keystroke(char key_press, int new_or_saved);
 void display_file();
 void file_return(bool save);
 void display_file_name_header();
-void display_file_name();
+void display_file_name(); 
 
 
 // Functions for mouse
 void draw_cursor(int, int, int);
-void draw_cursor_icon(int x, int y);
-void remove_old_mouse();
+void draw_cursor_icon(int x, int y, volatile int*);
+
+void draw_saved_bg_at_old_mouse_pos();
+void save_bg_at_new_mouse_pos();
+
+// void remove_old_mouse();
 
 /*
 	Global variables
@@ -941,7 +945,7 @@ void move_button_outline(int b1, int b2, int b3){
 		return;
 	}
 	else if(move_button_outline_bar && b2 == (int)0xe0){ 
-		remove_old_mouse();
+		// remove_old_mouse();
 
 		if(b3 == 0x72){ // DOWN arrow
 			typing = true;
@@ -1010,11 +1014,12 @@ void move_button_outline(int b1, int b2, int b3){
 			
 		}
 	}
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
 void draw_text_editor(){
-	remove_old_mouse();
+	// remove_old_mouse();
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
@@ -1077,11 +1082,12 @@ void draw_text_editor(){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
 void delete_text_editor(){
-	remove_old_mouse();
+	// remove_old_mouse();
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
@@ -1103,6 +1109,7 @@ void delete_text_editor(){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
@@ -1128,7 +1135,7 @@ void move_outline(int b1, int b2, int b3){
 		return;
 	}
 	else if(move_outline_bar && b2 == (int)0xe0){ 
-		remove_old_mouse();
+		// remove_old_mouse();
 		clear_char_buffer();
 		delete_square(xpos, ypos-1, xpos_2, ypos_2, 15);
 		bool found = false;
@@ -1229,7 +1236,9 @@ void move_outline(int b1, int b2, int b3){
 		move_outline_bar = false;
 		display_file_name();
 	}
-	draw_cursor(0, 0, 0);
+
+	// save_bg_at_new_mouse_pos(); //
+	// draw_cursor(0, 0, 0);
 }
 
 void move_outline_in_taskbar(int b1, int b2, int b3){
@@ -1244,7 +1253,7 @@ void move_outline_in_taskbar(int b1, int b2, int b3){
 		return;
 	}
 	else if(move_outline_bar && b2 == (int)0xe0){ 
-		remove_old_mouse();
+		// remove_old_mouse();
 		if( b3 == (int)0x75){	// UP arrow
 			clear_char_buffer();
 			in_taskbar = false;
@@ -1274,11 +1283,12 @@ void move_outline_in_taskbar(int b1, int b2, int b3){
 		}
 	}
 
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
 void delete_square_text_editor(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
-	remove_old_mouse();
+	// remove_old_mouse();
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = xpos + (320*ypos);
@@ -1305,11 +1315,12 @@ void delete_square_text_editor(int xpos, int ypos, int xpos_2, int ypos_2, int s
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
 void delete_square(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
-	remove_old_mouse();
+	// remove_old_mouse();
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = xpos + (320*ypos);
@@ -1336,11 +1347,12 @@ void delete_square(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
 void delete_square_taskbar(int xpos, int ypos, int xpos_2, int ypos_2){
-	remove_old_mouse();
+	// remove_old_mouse();
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = xpos + (320*ypos);
@@ -1367,11 +1379,12 @@ void delete_square_taskbar(int xpos, int ypos, int xpos_2, int ypos_2){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
 void draw_square(int xpos, int ypos, int xpos_2, int ypos_2){
-	remove_old_mouse();
+	// remove_old_mouse();
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	for(int x = xpos; x < xpos_2; x++){
@@ -1397,11 +1410,12 @@ void draw_square(int xpos, int ypos, int xpos_2, int ypos_2){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
 void draw_icon(short int image[]){
-	remove_old_mouse();
+	// remove_old_mouse();
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
@@ -1471,12 +1485,13 @@ void draw_icon(short int image[]){
 	
 	//check = !check;
 
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
 void delete_icon(short int image[], int _x, int _y)
 {
-	remove_old_mouse();
+	// remove_old_mouse();
 
 	volatile int *pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = _x + (320*_y);
@@ -1513,7 +1528,7 @@ void delete_icon(short int image[], int _x, int _y)
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	
+	save_bg_at_new_mouse_pos(); //
 	draw_cursor(0, 0, 0);
 }
 
@@ -2021,7 +2036,10 @@ void draw_cursor(int misc, int xpos, int ypos){
 		return;
 	}
 
-	remove_old_mouse();
+	// remove_old_mouse();
+	draw_saved_bg_at_old_mouse_pos();
+	save_bg_at_new_mouse_pos(); //
+
 
 	// // Draw background at previous position
 	// for (int x=0; x<=6; ++x){
@@ -2044,15 +2062,12 @@ void draw_cursor(int misc, int xpos, int ypos){
 
 	
 	// Draw on current buffer :/
-	draw_cursor_icon(mouse_x, mouse_y);
+	volatile int* buffer_address = (int *)0xFF203020;
+	draw_cursor_icon(mouse_x, mouse_y, buffer_address);
 
-	// one_pixel_address = *(pixel_ctrl_ptr) + (mouse_y << 10) + (mouse_x << 1);
-	// *one_pixel_address = 60000;
-	
-	// Clear previous mouse position
-	// one_pixel_address = *(pixel_ctrl_ptr) + (mouse_y_prev << 10) + (mouse_x_prev << 1);
-	// *one_pixel_address = 0;
-	
+	// Draw on back buffer
+	buffer_address = (int *)0xFF203024;
+	draw_cursor_icon(mouse_x, mouse_y, buffer_address);
 
 	// // Do the same on back buffer (for double buffering)
 	// one_pixel_address = pixel_buffer_start + (mouse_y << 10) + (mouse_x << 1);
@@ -2070,8 +2085,6 @@ void draw_cursor(int misc, int xpos, int ypos){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 	
-	
-	
 	plot_pixel(mouse_x,mouse_y, 60000);
 	
 	/*
@@ -2080,35 +2093,70 @@ void draw_cursor(int misc, int xpos, int ypos){
 	*/
 }
 
-void remove_old_mouse(){
+// void remove_old_mouse(){
+// 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+// 	volatile short int *one_pixel_address;
+
+// 	// Draw background at previous position
+// 	for (int x=0; x<=6; ++x){
+// 		for (int y=0; y<=10; ++y){
+// 			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y_prev + y) << 10) + ( (mouse_x_prev + x) << 1));
+// 			*one_pixel_address = prev_mouse_background[x][y];
+// 			// plot_pixel((mouse_x_prev + x), (mouse_y_prev + y), 0 );
+// 		}
+// 	}
+
+// 	// Save background of new position
+// 	for (int x=0; x<=6; ++x){
+// 		for (int y=0; y<=10; ++y){
+// 			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y + y) << 10) + ( (mouse_x + x) << 1));
+
+// 			// prev_mouse_background[x][y] = save_pixel( (mouse_x + x), (mouse_y + y));
+// 			prev_mouse_background[x][y] = *one_pixel_address;
+// 		}
+// 	}
+// }
+
+void draw_saved_bg_at_old_mouse_pos(){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	volatile short int *one_pixel_address;
 
-	// Draw background at previous position
+	// Redraw background at previous mouse position
 	for (int x=0; x<=6; ++x){
 		for (int y=0; y<=10; ++y){
+			// Draw on current buffer
 			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y_prev + y) << 10) + ( (mouse_x_prev + x) << 1));
+			*one_pixel_address = prev_mouse_background[x][y];
+			
+			// Draw on back buffer
+			one_pixel_address = (*(pixel_ctrl_ptr + 1) + ( (mouse_y_prev + y) << 10) + ( (mouse_x_prev + x) << 1));
 			*one_pixel_address = prev_mouse_background[x][y];
 			// plot_pixel((mouse_x_prev + x), (mouse_y_prev + y), 0 );
 		}
 	}
+}
 
-	// Save background of new position
+void save_bg_at_new_mouse_pos(){
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	volatile short int *one_pixel_address;
+
+	// Save background at new mouse position before drawing mouse on top of it
+	// printf("mouse x: %d, mouse y: %d\n", mouse_x, mouse_y);
+
 	for (int x=0; x<=6; ++x){
 		for (int y=0; y<=10; ++y){
 			one_pixel_address = (*(pixel_ctrl_ptr) + ( (mouse_y + y) << 10) + ( (mouse_x + x) << 1));
-
-			// prev_mouse_background[x][y] = save_pixel( (mouse_x + x), (mouse_y + y));
 			prev_mouse_background[x][y] = *one_pixel_address;
 		}
 	}
 }
 
+
 // Draws a cursor icon at the given position on VGA
 // Called by draw_cursor
-void draw_cursor_icon(int x_start, int y_start /*, volatile short int* one_pixel_address */){
+void draw_cursor_icon(int x_start, int y_start, volatile int* pixel_ctrl_ptr){
 	volatile short int *one_pixel_address;
-    volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+    // volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 
 	for (int x=0; x <= 6; ++x){
 		for (int y=0; y <= 10; ++y){
@@ -2119,7 +2167,7 @@ void draw_cursor_icon(int x_start, int y_start /*, volatile short int* one_pixel
 				if ( x==0 || x==1 ){	// Black pixel
 					one_pixel_address += ( ( (y_start + y) << 9 ) + ( (x_start + x)) );
 					*one_pixel_address = 0;
-                    *(int*)(0xFF200000) = x_start + x;
+                    // *(int*)(0xFF200000) = x_start + x
 				}
 			}
 			else if (y==1){		
