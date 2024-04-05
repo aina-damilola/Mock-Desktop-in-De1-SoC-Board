@@ -60,7 +60,7 @@ void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
 void draw();
 void draw_icon(short int image[]);
-void delete_icon(short int image[]);
+void delete_icon(short int image[], int _x, int _y);
 void HEX_PS2(int, int, int);
 void move_outline(int, int, int);
 void move_button_outline(int, int, int);
@@ -147,6 +147,7 @@ bool ctrl_key = false;
 bool caps_lock_press_ready = true;
 bool typing = true;
 bool ready_for_next_character = false;
+bool ready_to_delete_file = true;
 
 int test_x = 6;
 int test_y = 8;
@@ -494,7 +495,7 @@ int main(void)
 		if(byte3 == 0x14 && byte2 !=0xf0 && !ctrl_key){
 			ctrl_key = true;
 		}
-		if(byte3 == 0x12 && byte2 !=0xf0 && !shift_key){
+		if((byte3 == 0x12 || byte3 == 0x59) && (byte2 !=0xf0 && !shift_key)){
 			shift_key = true;
 		}
 		if(byte3 == 0x11 && byte2 !=0xf0 && !alt_key){
@@ -509,7 +510,7 @@ int main(void)
 			if(byte3 == 0x14){
 				ctrl_key = false;
 			}
-			else if(byte3 == 0x12){
+			else if(byte3 == 0x12 || byte3 == 0x59){
 				shift_key = false;
 			}
 			else if(byte3 == 0x11){
@@ -606,14 +607,29 @@ int main(void)
 				button_posit = 0;
 			}
 			else if(!in_taskbar){
-				delete_square(xpos, ypos-1, xpos_2,  ypos_2, 15);
-				draw_text_editor();
-				display_file();
-				type_of_file = 0;
-				in_screen_editor = true;
-				typing = true;
-				button_posit = 0;
-				draw_screen = false;
+				bool continue_ = false;
+				for(int x = 0; x < 11; x++){
+					if(continue_){
+						break;
+					}
+					for(int y = 0; y < 8; y++){
+						if(Icons[(xpos-25)/25][(ypos-25)/25].file_presence == 1){
+							continue_ = true;
+							break;
+						}
+					}
+				}
+				if(continue_){
+					delete_square(xpos, ypos-1, xpos_2,  ypos_2, 15);
+					draw_text_editor();
+					display_file();
+					type_of_file = 0;
+					in_screen_editor = true;
+					typing = true;
+					button_posit = 0;
+					draw_screen = false;
+				}
+				
 			}
 			byte1 = byte2 = byte3 = 0;
 		}
@@ -621,7 +637,24 @@ int main(void)
 			if(byte3 == (int)0x5a){
 				draw_screen = true;
 			}
+			if(byte3 == 0x66){
+				ready_to_delete_file = true;
+			}
 		}
+
+		if(byte3 == 0x66 && byte2 != 0xf0 && !in_taskbar && ready_to_delete_file && !in_screen_editor){
+			printf("\n%d",Icons[(xpos-25)/25][(ypos-25)/25].file_presence);
+			//printf("\n%d",Icons[(xpos-25)/25][(ypos-25)/25].file_presence);
+			if(Icons[(xpos-25)/25][(ypos-25)/25].file_presence == 1){
+				printf("\n%d",Icons[(xpos-25)/25][(ypos-25)/25].text_size);
+				//printf("\n%d",Icons[(xpos-25)/25][(ypos-25)/25].text_size);
+				delete_icon(file_icon, xpos, ypos);	
+				//printf("x: %d, y: %d", xpos, ypos);
+				ready_to_delete_file = false;
+
+			}
+		}
+		
 
     }
 
@@ -631,21 +664,41 @@ int main(void)
 
 void file_return(bool save){ // if true, save the file, if false, dont save the file
 	if(save){
-		Icons[row][col].text_size = Icons[row][col].prev_text_size;
-		Icons[row][col].text = Icons[row][col].prev_text;
+		Icons[col][row].text_size = Icons[col][row].prev_text_size;
+		Icons[col][row].text = Icons[col][row].prev_text;
 	}
 	else{
-		Icons[row][col].prev_text_size = Icons[row][col].text_size;
-		Icons[row][col].prev_text = Icons[row][col].text;
+		Icons[col][row].prev_text_size = Icons[col][row].text_size;
+		Icons[col][row].prev_text = Icons[col][row].text;
 	}
+	
 }
 
 // 1 for new, 0 for saved
 void save_keystroke(char key_press, int new_or_saved){
+	bool set = false;
+
+	for(int x = 0; x < 11; x++){
+		if(set){
+			break;
+		}
+		for(int y = 0; y < 8; y++){
+			if(Icons[x][y].file_presence == 0){
+				initial_x = 25*(x+1);
+				initial_y = 25*(y+1);
+				set = true;
+				break;
+			}
+
+		}
+	}
 
 	
 
 	if(new_or_saved == 1){
+		if(!set){
+			return;
+		}
 		col = (initial_x-25)/25;
 		row = (initial_y-25)/25;
 	}else{
@@ -653,35 +706,35 @@ void save_keystroke(char key_press, int new_or_saved){
 		row = (ypos-25)/25;
 	}
 	
-	int len = Icons[row][col].prev_text_size;
+	int len = Icons[col][row].prev_text_size;
 	int text_length;
 
 	// Backspace
 	if ( key_press == 8){
 		if(len!=0){
-			Icons[row][col].prev_text_size -= 1;
+			Icons[col][row].prev_text_size -= 1;
 		}
 		
 		return;
 	}
 
 	// Determine length of current text and whether we need more space
-	if (Icons[row][col].prev_text == NULL){
+	if (Icons[col][row].prev_text == NULL){
 		text_length = 0;
 	} else {
-		text_length = strlen(Icons[row][col].prev_text);
+		text_length = strlen(Icons[col][row].prev_text);
 	}
 
 	// Need more space
 	if (text_length >= len ){
 
-		char* more_numbers = (char *)realloc(Icons[row][col].prev_text, (len+1) * sizeof(char));
+		char* more_numbers = (char *)realloc(Icons[col][row].prev_text, (len+1) * sizeof(char));
 
 		if (more_numbers != NULL)
 		{
-			Icons[row][col].prev_text = more_numbers;
-			Icons[row][col].prev_text[len] = key_press;
-			Icons[row][col].prev_text_size += 1;
+			Icons[col][row].prev_text = more_numbers;
+			Icons[col][row].prev_text[len] = key_press;
+			Icons[col][row].prev_text_size += 1;
 		}
 		else
 		{
@@ -693,14 +746,14 @@ void save_keystroke(char key_press, int new_or_saved){
 
 	// Don't need more space
 	else {
-		Icons[row][col].prev_text[len] = key_press;
-		Icons[row][col].prev_text_size += 1;
+		Icons[col][row].prev_text[len] = key_press;
+		Icons[col][row].prev_text_size += 1;
 	}
 
 	
 	// printf("Row: %d, Col: %d\n", row, col);
-	// for(int i = 0; i < Icons[row][col].text_size; i++){
-	// 	printf("%d ", Icons[row][col].text[i]);
+	// for(int i = 0; i < Icons[col][row].text_size; i++){
+	// 	printf("%d ", Icons[col][row].text[i]);
 	// }
 	// printf("\n");
 	
@@ -713,14 +766,14 @@ void display_file(){
 	int row = (ypos-25)/25;
 	/*
 	printf("Row: %d, Col: %d\n", row, col);
-	for(int i = 0; i < Icons[row][col].text_size; i++){
-		printf("%d ", Icons[row][col].text[i]);
+	for(int i = 0; i < Icons[col][row].text_size; i++){
+		printf("%d ", Icons[col][row].text[i]);
 	}
 	printf("\n");	
 	*/
-	for (int i=0; i < Icons[row][col].text_size; i++){
-		plot_char(test_x, test_y, Icons[row][col].text[i]);
-		if(Icons[row][col].text[i] != 13){
+	for (int i=0; i < Icons[col][row].text_size; i++){
+		plot_char(test_x, test_y, Icons[col][row].text[i]);
+		if(Icons[col][row].text[i] != 13){
 			if(test_x > 60){
 				if(test_y <= 49){
 					test_x = 6;
@@ -1165,84 +1218,116 @@ void draw_square(int xpos, int ypos, int xpos_2, int ypos_2){
 void draw_icon(short int image[]){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
+	bool set = false;
 
+	for(int x = 0; x < 11; x++){
+		if(set){
+			break;
+		}
+		for(int y = 0; y < 8; y++){
+			if(Icons[x][y].file_presence == 0){
+				initial_x = 25*(x+1);
+				initial_y = 25*(y+1);
+				set = true;
+				break;
+			}
 
-	if(initial_x >= 25*11){return;}
+		}
+	}
+
+	if(!set){
+		return;
+	}
 	
 	for(int y = initial_y; y < initial_y +15; y++){
 		for(int x = initial_x; x < initial_x +15; x++){
 			if(image[count] != 0){
 				plot_pixel(x, y, image[count]);
 			}
-			
 			count++;
-			
 		}
 	}
-	if(!check){
-		check = !check;
-		wait_for_vsync();
-		pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-		draw_icon(file_icon);
-		return;
-	}
-	Icons[(initial_x-25)/25][(initial_y-25)/25].file_presence = 1;
-	if(initial_y > 25*7){
-		initial_y = 25;
-		initial_x += 25;
-	}else{
-		initial_y += 25;
-
-	}
 	
-	
+	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-	check = !check;
-}
 
-void delete_icon(short int image[])
-{
-	volatile int *pixel_ctrl_ptr = (int *)0xFF203020;
-	int count = 0;
-
-	if(!check){
-		if(initial_x == 25 && initial_y == 25){return;}
-		if(initial_y == 25){
-			initial_y = (25*8);
-			initial_x -= 25;
-		}
-		else
-		{
-			initial_y -= 25;
-		}
-
-		og_count = initial_x + (320*initial_y);
-		
-	}
-	count = og_count;
+	count = 0;
 	for(int y = initial_y; y < initial_y +15; y++){
 		for(int x = initial_x; x < initial_x +15; x++){
+			if(image[count] != 0){
+				plot_pixel(x, y, image[count]);
+			}
+			count++;
+		}
+	}
+
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	
+	Icons[(initial_x-25)/25][(initial_y-25)/25].file_presence = 1;
+	
+	set = false;
+	for(int x = 0; x < 11; x++){
+		if(set){
+			break;
+		}
+		for(int y = 0; y < 8; y++){
+			if(Icons[x][y].file_presence == 0){
+				initial_x = 25*(x+1);
+				initial_y = 25*(y+1);
+				set = true;
+				break;
+			}
+
+		}
+	}
+	
+	//check = !check;
+}
+
+void delete_icon(short int image[], int _x, int _y)
+{
+	volatile int *pixel_ctrl_ptr = (int *)0xFF203020;
+	int count = _x + (320*_y);
+/*
+	printf("row: %d, col: %d\n",(_y-25)/25 ,(_x-25)/25);
+	for(int i = 0; i < Icons[(_x-25)/25][(_y-25)/25].prev_text_size; i++){
+		printf("\n%c",Icons[(_x-25)/25][(_y-25)/25].prev_text[i]);
+	}
+*/
+	
+	//free(Icons[(_x-25)/25][(_y-25)/25].prev_text);
+	
+	Icons[(_x-25)/25][(_y-25)/25].prev_text = NULL;
+	Icons[(_x-25)/25][(_y-25)/25].prev_text_size = 0;
+	Icons[(_x-25)/25][(_y-25)/25].file_presence = 0;
+	Icons[(_x-25)/25][(_y-25)/25].text = NULL;
+	Icons[(_x-25)/25][(_y-25)/25].text_size = 0;
+	for(int y = _y; y < _y+15; y++){
+		for(int x = _x; x < _x+15; x++){
 			plot_pixel(x, y, background[count]);
 			count++;
-			
-			
 		}
 		count -= 15;
 		count += 320;
 	}
-	if (!check)
-	{
-		check = !check;
-		wait_for_vsync();
-		pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-		delete_icon(file_icon);
-		return;
-	}
-	
-	Icons[(initial_x-25)/25][(initial_y-25)/25].file_presence = 0;
-	check = !check;
-	
+
+	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	count = _x + (320*_y);
+
+	for(int y = _y; y < _y+15; y++){
+		for(int x = _x; x < _x+15; x++){
+			plot_pixel(x, y, background[count]);
+			count++;
+		}
+		count -= 15;
+		count += 320;
+	}
+
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	
 }
 
 void draw()
@@ -1254,7 +1339,7 @@ void draw()
 	int margin = (header_height-app_width_height)/2;
 	
 	Icons[0][8].file_presence = 1;
-	Icons[1][8].file_presence = 1;
+	//Icons[1][8].file_presence = 1;
 
 	for(int y = 0; y < 240-header_height; y++){
 		for(int x = 0; x < 320; x++){
@@ -1318,8 +1403,7 @@ void interrupt_handler(void)
 	return;
 }
 
-void pushbutton_ISR(void)
-{
+void pushbutton_ISR(void){
 	volatile int *KEY_ptr = (int *)0xff200050;
 	volatile int *LED_ptr = (int *)0xff200000;
 	int press;
@@ -1333,7 +1417,7 @@ void pushbutton_ISR(void)
 			draw_icon(file_icon);
 		}
 		else if(press == 0x2){
-			delete_icon(file_icon);
+			delete_icon(file_icon, 25, 25);
 			delete_square(xpos, ypos-1, xpos_2,  ypos_2, 15);
 			xpos = 25;
 			ypos = 25;
@@ -1347,8 +1431,7 @@ void pushbutton_ISR(void)
 	return;
 }
 
-void the_exception(void)
-{
+void the_exception(void){
 	asm("subi sp, sp, 128");
 	asm("stw et, 96(sp)");
 	asm("rdctl et, ctl4");
@@ -1423,8 +1506,7 @@ void the_exception(void)
 	asm("eret");
 }
 
-void clear_char_buffer()
-{
+void clear_char_buffer(){
 	for (int x = 0; x < 80; x++)
 	{
 		for (int y = 0; y < 60; y++)
@@ -1436,8 +1518,7 @@ void clear_char_buffer()
 	}
 }
 
-bool plot_char(int x, int y, uint8_t letter)
-{
+bool plot_char(int x, int y, uint8_t letter){
 	if(letter == 0 ){
 		return false;
 	}
