@@ -138,6 +138,9 @@ int highlight_x = 25;
 int highlight_y = 25;
 
 // Mouse variables
+int printCounter = 0;
+bool IsInTextEditor = false;
+
 short int prev_mouse_background[7][11];
 
 int mouse_x = 0;
@@ -148,6 +151,8 @@ int mouse_y_prev = 0;
 
 int interrupt_mouse_data;
 int inter_byte1 = 0, inter_byte2 = 0, inter_byte3 = 0;
+
+//
 
 int og_count = 0;
 int button_posit = 0;
@@ -1640,6 +1645,30 @@ void interrupt_handler(void)
 			
 			draw_cursor(inter_byte1, inter_byte2, inter_byte3);
 
+			// if left mouse button is clicked
+			if (inter_byte1 & 0x1){
+				// mouse_x
+				// mouse_y
+				//printf("clicked\n");
+
+				if (IsInTextEditor){
+					// psuedocode
+					// if (clicked position = one of RGB buttons){
+						// react to click on RGB buttons
+					// }
+					
+				}
+
+				// In main screen
+				else {
+					// psuedocode
+					// if (clicked position = app or file icon){
+						// react to click on textEdtior app icon and file icons
+						// IsInTextEditor = true;
+					// }
+					// Otherwise do nothing.
+				}
+			}
 		}
 	}
 	// else, ignore the interrupt
@@ -2072,6 +2101,8 @@ void draw_saved_bg_at_old_mouse_pos(){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	volatile short int *one_pixel_address;
 
+	// printf("draw old mouse x: %d, mouse y: %d\n", mouse_x, mouse_y);
+
 	// Redraw background at previous mouse position
 	for (int x=0; x<=6; ++x){
 		for (int y=0; y<=10; ++y){
@@ -2092,7 +2123,7 @@ void save_bg_at_new_mouse_pos(){
 	volatile short int *one_pixel_address;
 
 	// Save background at new mouse position before drawing mouse on top of it
-	// printf("mouse x: %d, mouse y: %d\n", mouse_x, mouse_y);
+	// printf("saved mouse x: %d, mouse y: %d\n", mouse_x, mouse_y);
 
 	for (int x=0; x<=6; ++x){
 		for (int y=0; y<=10; ++y){
