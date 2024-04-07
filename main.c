@@ -2011,10 +2011,36 @@ void interrupt_handler(void)
 				// mouse_x
 				// mouse_y
 				//printf("clicked\n");
+
+
 				if(in_save_as){	// In save as screen
-					
+					if(mouse_y > 125 && mouse_y < 133){
+						if(mouse_x > 102 && mouse_x < 120){ // SAVE Button
+							int col__, row__;
+							if(type_of_file == 1){
+								col__ = (initial_x-ICON_SPACING)/ICON_SPACING;
+								row__ = (initial_y-ICON_SPACING)/ICON_SPACING;
+							}else{
+								col__ = (xpos-ICON_SPACING)/ICON_SPACING;
+								row__ = (ypos-ICON_SPACING)/ICON_SPACING;
+							}
+							Icons[col__][row__].file_name = Icons[col__][row__].prev_file_name;
+							Icons[col__][row__].file_name_size = Icons[col__][row__].prev_file_name_size;
+							Icons[col__][row__].name_set = true;
+							save_file();
+							typing = false;
+							draw_screen = false;
+							in_save_as = false;
+						}
+						else if(mouse_x > 142 && mouse_x < 168){	// CANCEL button
+							remove_save_as_screen();
+							in_save_as = false;
+							typing = false;
+							typing_file_name = false;
+						}
+					}
 				}
-				else if(!in_save_as && in_screen_editor){	// In text editor but not in save as screen
+				else if(!in_save_as && in_screen_editor){	// In text editor but not in 'save as' screen
 					int button_size = 5;
 					if(mouse_y > (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER) && mouse_y <= (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER+ button_size))
 						if(mouse_x > 220 && mouse_x < 220 + button_size){	// BLUE button
