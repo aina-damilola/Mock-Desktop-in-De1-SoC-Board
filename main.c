@@ -24,6 +24,8 @@
 #define TEXT_EDITOR_SIDE_BORDER 2
 #define TEXT_EDITOR_TOP_BORDER 10
 
+#define TYPING_LINE_HEIGHT 5
+
 #define NIOS2_READ_STATUS(dest)    \
 	do                             \
 	{                              \
@@ -77,7 +79,6 @@
 */
 
 void wait_for_vsync();
-void clear_screen();
 void plot_pixel(int x, int y, short int line_color);
 void draw();
 void draw_icon(short int image[]);
@@ -129,6 +130,9 @@ void move_button_save_as();
 void remove_save_as_screen();
 void restore_text_buffer();
 void save_text_buffer();
+
+void draw_typing_line(int x, int y, short color);
+void restore_typing_line(int x, int y);
 
 /*
 	Global variables
@@ -647,7 +651,7 @@ int main(void)
 					button_posit = 1;
 					typing = false;
 				}
-		
+				
 				// Get the character typed
 				char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
 				
@@ -660,37 +664,57 @@ int main(void)
 				}
 
 				if(!(test_x == 6 && test_y == 8) && new_char == 8){	
+					volatile uint8_t *one_char_address;
+					restore_typing_line(test_x * 4, test_y * 4);
 					if(test_x == 6 && test_y != 8){
+						
 						test_x = 60;
-						test_y -= 1;
+						test_y -= 2;
+						one_char_address = char_buffer_start + (test_y << 7) + test_x;
+						while(*one_char_address == 0){
+							test_x--;
+							if(test_x < 6){
+								break;
+							}
+							one_char_address = char_buffer_start + (test_y << 7) + test_x;
+						}
+						test_x++;
 					}
 					else{
 						test_x -= 1;
 					}				
 				}
+				if(new_char == 13){
+					restore_typing_line(test_x * 4, test_y * 4);
+				}
 				// Plot the new character
 				if(plot_char(test_x, test_y, new_char)){
+					if(!(!(test_x == 6 && test_y == 8) && new_char == 8) && new_char != 13){
+						restore_typing_line(test_x * 4, test_y * 4);
+					}
+					
 					save_keystroke(new_char, type_of_file);
 
-					if(new_char != 13){ // Enter
-						if(test_x > 60){
-							if(test_y <= 49){
+					if(new_char != 13 && new_char != 8){ // Not Enter && Not BackSpace
+						if(test_x >= 60){
+							if(test_y < 49){
 								test_x = 6;
 								test_y+=2;
 							}
 							
 						}else{
 							// Not backspace
-							if (new_char != 8){
-								test_x += 1;
-							}
+					
+							test_x += 1;
+							
 						}
 					}
+					
 					//}
 					
-					
-					
+					printf("%d\n", test_x);
 					byte1 = byte2 = byte3 = 0;
+					draw_typing_line(test_x * 4, test_y * 4, 0xffff);
 				}
 				
 				
@@ -822,6 +846,52 @@ int main(void)
 
 
 	return 0;
+}
+
+void restore_typing_line(int x, int y){
+
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	draw_saved_bg_at_old_mouse_pos();
+	int count = 20000;
+	for(int i = y; i < y + TYPING_LINE_HEIGHT; i++){
+		plot_pixel(x, i, save[count]);
+		count++;
+	}
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	
+	count = 20000;
+	for(int i = y; i < y + TYPING_LINE_HEIGHT; i++){
+		plot_pixel(x, i, save[count]);
+		count++;
+	}
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);	
+
+	save_bg_at_new_mouse_pos(); //
+	draw_cursor(0, 0, 0);
+}
+
+void draw_typing_line(int x, int y, short color){
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	draw_saved_bg_at_old_mouse_pos();
+	int count = 20000;
+	for(int i = y; i < y + TYPING_LINE_HEIGHT; i++){
+		save[count] = save_pixel(x, i);
+		count++;
+		plot_pixel(x, i, color);
+	}
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+	
+	for(int i = y; i < y + TYPING_LINE_HEIGHT; i++){
+		plot_pixel(x, i, color);
+	}
+	wait_for_vsync();
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+
+	save_bg_at_new_mouse_pos(); //
+	draw_cursor(0, 0, 0);
 }
 
 void move_button_save_as(){
