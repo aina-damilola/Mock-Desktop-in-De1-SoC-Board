@@ -119,6 +119,8 @@ void draw_saved_bg_at_old_mouse_pos();
 void save_bg_at_new_mouse_pos();
 
 void save_file();
+void exit_file();
+void save_as_execution();
 void display_save_as_screen();
 void save_name_keystroke(char key_press, int new_or_saved);
 
@@ -651,13 +653,7 @@ int main(void)
 					typing = false;
 				}
 				else if(new_char == 27){
-					file_return(false);
-					clear_char_buffer();
-					delete_text_editor();
-					in_screen_editor = false;
-					draw_screen = false;
-					test_x = 6;
-					test_y = 8;
+					exit_file();
 				}
 
 				if(!(test_x == 6 && test_y == 8) && new_char == 8){	
@@ -1187,7 +1183,7 @@ void display_file(){
 }
 
 void move_button_outline(int b1, int b2, int b3){
-	int col_, row_;
+	
 	int button_size = 5;
 	if(!move_button_outline_bar){
 		if(b1 == (int)0xe0 && b2 == (int)0xf0){
@@ -1244,14 +1240,7 @@ void move_button_outline(int b1, int b2, int b3){
 	}
 	if(b3 == (int)0x5a && b2 != (int)0xf0 && draw_screen && in_screen_editor){
 		if(button_posit == 2){ // RED button
-			file_return(false);
-			clear_char_buffer();
-			delete_text_editor();
-			in_screen_editor = false;
-			draw_screen = false;
-			test_x = 6;
-			test_y = 8;
-			
+			exit_file();
 		}
 		else if(button_posit == 1){	// GREEN button
 			save_file();
@@ -1259,24 +1248,39 @@ void move_button_outline(int b1, int b2, int b3){
 			
 		}
 		else if(button_posit == 0){	// BLUE button
-			save_text_buffer();
-			in_save_as = true;
-			display_save_as_screen();
-			write_prompt();
-			typing_file_name = true;
-			
-			if(type_of_file == 1){
-				col_ = (initial_x-ICON_SPACING)/ICON_SPACING;
-				row_ = (initial_y-ICON_SPACING)/ICON_SPACING;
-			}else{
-				col_ = (xpos-ICON_SPACING)/ICON_SPACING;
-				row_ = (ypos-ICON_SPACING)/ICON_SPACING;
-			}
-			Icons[col_][row_].prev_file_name = NULL;
-			Icons[col_][row_].prev_file_name_size = 0;
+			save_as_execution();
 		}
 	}
 	
+}
+
+void exit_file(){
+	file_return(false);
+	clear_char_buffer();
+	delete_text_editor();
+	in_screen_editor = false;
+	draw_screen = false;
+	test_x = 6;
+	test_y = 8;
+}
+
+void save_as_execution(){
+	int col_, row_;
+	save_text_buffer();
+	in_save_as = true;
+	display_save_as_screen();
+	write_prompt();
+	typing_file_name = true;
+	
+	if(type_of_file == 1){
+		col_ = (initial_x-ICON_SPACING)/ICON_SPACING;
+		row_ = (initial_y-ICON_SPACING)/ICON_SPACING;
+	}else{
+		col_ = (xpos-ICON_SPACING)/ICON_SPACING;
+		row_ = (ypos-ICON_SPACING)/ICON_SPACING;
+	}
+	Icons[col_][row_].prev_file_name = NULL;
+	Icons[col_][row_].prev_file_name_size = 0;
 }
 
 void write_prompt(){
@@ -2007,23 +2011,28 @@ void interrupt_handler(void)
 				// mouse_x
 				// mouse_y
 				//printf("clicked\n");
-
-				if (IsInTextEditor){
-					// psuedocode
-					// if (clicked position = one of RGB buttons){
-						// react to click on RGB buttons
-					// }
+				if(in_save_as){	// In save as screen
 					
 				}
+				else if(!in_save_as && in_screen_editor){	// In text editor but not in save as screen
+					int button_size = 5;
+					if(mouse_y > (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER) && mouse_y <= (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER+ button_size))
+						if(mouse_x > 220 && mouse_x < 220 + button_size){	// BLUE button
+							delete_square(230, (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER), 230 + button_size, (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER+ button_size + 1), 0b111101111001111);
+							delete_square(240, (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER), 240 + button_size, (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER+ button_size + 1), 0b111101111001111);
+							draw_square(220, (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER), 220 + button_size, (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER+ button_size + 1));	
+							save_as_execution();
+						}
+						else if(mouse_x > 230 && mouse_x < 230 + button_size){	// GREEN button
+							save_file();
+							typing = false;
+						}
+						else if(mouse_x > 240 && mouse_x < 240 + button_size){	// RED button
+							exit_file();
+						}
+				}
+				else{	// In main screen
 
-				// In main screen
-				else {
-					// psuedocode
-					// if (clicked position = app or file icon){
-						// react to click on textEdtior app icon and file icons
-						// IsInTextEditor = true;
-					// }
-					// Otherwise do nothing.
 				}
 			}
 		}
