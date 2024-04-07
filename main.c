@@ -2058,7 +2058,59 @@ void interrupt_handler(void)
 						}
 				}
 				else{	// In main screen
+					int taskbar_padding = 2;
+					int app_width = 12;
+					int modifiable_mouse_y = 25;
+					int modifiable_mouse_x = 25;
 
+					if(mouse_y > SCREEN_HEIGHT - TASKBAR_HEIGHT - taskbar_padding && mouse_y < SCREEN_HEIGHT - taskbar_padding){	// If text editor is clicked
+						if(mouse_x > TASKBAR_LEFT_MARGIN && mouse_x < TASKBAR_LEFT_MARGIN + app_width){
+							delete_square_home_screen(xpos, ypos-1, xpos_2,  ypos_2, FILE_ICON_SIDE_LENGTH);
+							clear_char_buffer();
+							draw_text_editor();
+							in_screen_editor = true;
+							typing = true;
+							type_of_file = 1;
+							draw_screen = false;
+							button_posit = 0;
+						}
+					}
+					else{	// If a file icon is clicked
+						while(modifiable_mouse_x < mouse_x){
+							modifiable_mouse_x += ICON_SPACING;
+						}
+						while(modifiable_mouse_y < mouse_y){
+							modifiable_mouse_y += ICON_SPACING;
+						}
+						modifiable_mouse_x -= ICON_SPACING;
+						modifiable_mouse_y -= ICON_SPACING;
+
+						if(mouse_y > modifiable_mouse_y && mouse_y < modifiable_mouse_y + FILE_ICON_SIDE_LENGTH && mouse_x > modifiable_mouse_x && mouse_x < modifiable_mouse_x + FILE_ICON_SIDE_LENGTH ){
+							bool continue_ = false;
+							if(Icons[(modifiable_mouse_x-ICON_SPACING)/ICON_SPACING][(modifiable_mouse_y-ICON_SPACING)/ICON_SPACING].file_presence == 1){
+								continue_ = true;
+							}
+
+							if(continue_){
+								delete_square_home_screen(xpos, ypos-1, xpos_2,  ypos_2, FILE_ICON_SIDE_LENGTH);
+								xpos = modifiable_mouse_x;
+								ypos = modifiable_mouse_y;
+								xpos_2 = xpos + 15;
+								ypos_2 = ypos + 15;
+								clear_char_buffer();
+								draw_text_editor();
+								display_file();
+								display_file_name_header();
+
+								in_screen_editor = true;
+								typing = true;
+								draw_screen = false;
+
+								type_of_file = 0;
+								button_posit = 0;
+							}
+						}
+					}
 				}
 			}
 		}
