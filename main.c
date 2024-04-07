@@ -120,6 +120,7 @@ void save_bg_at_new_mouse_pos();
 
 void save_file();
 void exit_file();
+void write_prompt();
 void save_as_execution();
 void display_save_as_screen();
 void save_name_keystroke(char key_press, int new_or_saved);
@@ -169,6 +170,8 @@ int highlight_x = 25;
 int highlight_y = 25;
 
 // Mouse variables
+bool OnCpulator = true;
+
 int printCounter = 0;
 bool IsInTextEditor = false;
 
@@ -2000,6 +2003,7 @@ void interrupt_handler(void)
 			*(PS2_mouse_ptr) = 0xF4;
 			// mouse_data = -1;
 		}
+
 		if(interrupt_mouse_data == 3){
 			interrupt_mouse_data = 0;
 			HEX_PS2(inter_byte1, inter_byte2, inter_byte3);
@@ -2008,12 +2012,8 @@ void interrupt_handler(void)
 
 			// if left mouse button is clicked
 			if (inter_byte1 & 0x1){
-				// mouse_x
-				// mouse_y
-				//printf("clicked\n");
 
-
-				if(in_save_as){	// In save as screen
+				if(in_save_as){		// In save as screen
 					if(mouse_y > 125 && mouse_y < 133){
 						if(mouse_x > 102 && mouse_x < 120){ // SAVE Button
 							int col__, row__;
@@ -2040,6 +2040,7 @@ void interrupt_handler(void)
 						}
 					}
 				}
+
 				else if(!in_save_as && in_screen_editor){	// In text editor but not in 'save as' screen
 					int button_size = 5;
 					if(mouse_y > (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER) && mouse_y <= (TEXT_EDITOR_TOP_LEFT_Y + TEXT_EDITOR_SIDE_BORDER+ button_size))
@@ -2057,6 +2058,7 @@ void interrupt_handler(void)
 							exit_file();
 						}
 				}
+
 				else{	// In main screen
 					int taskbar_padding = 2;
 					int app_width = 12;
@@ -2405,7 +2407,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 		// Values not sensitive to shift,alt,caps,ctrl
 		switch(b3){
 			case 0x29: ASCII_code = 32; ready_for_next_character = false; break;		// SPACE
-			case 0x5a: ASCII_code = 13; ready_for_next_character = false; break;		// ENTER
+			case 0x5a: ASCII_code = 13; ready_for_next_character = false; break;		// ENTER	(10 instead of 13?)
 			case 0x66: ASCII_code = 8;  ready_for_next_character = false; break;		// Backspace
 			case 0x76: ASCII_code = 27; ready_for_next_character = false; break;		// Escape
 				
@@ -2495,10 +2497,18 @@ void draw_cursor(int misc, int xpos, int ypos){
 		mouse_x += (xpos);
 	}
 	if((misc & 0b100000) == 0b100000){ // negative y, (increment mouse_y in VGA on board), invert for cpulator
-		mouse_y += (256 - ypos);
+		if (OnCpulator){
+			mouse_y -= (256 - ypos);
+		} else {
+			mouse_y += (256 - ypos);
+		}
 	}
 	else{
-		mouse_y -= (ypos);
+		if (OnCpulator){
+			mouse_y += (ypos);
+		} else {
+			mouse_y -= (ypos);
+		}
 	}
 
 	// If mouse moved out of bounds, take the boundary coordinate
