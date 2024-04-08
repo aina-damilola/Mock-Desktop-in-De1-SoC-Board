@@ -1139,7 +1139,7 @@ void save_text_buffer(){
 	int count = 10000;
 	for (int x = 21; x < 48; x++)
 	{
-		for (int y = 18; y < 36; y++)
+		for (int y = 18; y <= 36; y++)
 		{
 			volatile uint8_t *one_char_address;
 			one_char_address = char_buffer_start + (y << 7) + x;
@@ -1154,7 +1154,7 @@ void restore_text_buffer(){
 	int count = 10000;
 	for (int x = 21; x < 48; x++)
 	{
-		for (int y = 18; y < 36; y++)
+		for (int y = 18; y <= 36; y++)
 		{
 			volatile uint8_t *one_char_address;
 			one_char_address = char_buffer_start + (y << 7) + x;
