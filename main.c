@@ -691,7 +691,8 @@ void move_button_save_as(){
 			typing_file_name = false;
 		}
 		else if(save_as_option == 0){	// On SAVE
-			
+			save_as_option = 0;
+			move_button_save_as_bar = false;
 			if(type_of_file == 1){
 				col__ = (initial_x-ICON_SPACING)/ICON_SPACING;
 				row__ = (initial_y-ICON_SPACING)/ICON_SPACING;
@@ -2165,11 +2166,32 @@ void keyboard_ISR(){
 			// Get the character typed
 			char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
 			
-			if(new_char == 19){
-				//CTRL+S
+			if(new_char == 19){ // CTRL+S
+			int col__, row__;
+				save_as_option = 0;
+				move_button_save_as_bar = false;
+				if(type_of_file == 1){
+					col__ = (initial_x-ICON_SPACING)/ICON_SPACING;
+					row__ = (initial_y-ICON_SPACING)/ICON_SPACING;
+				}else{
+					col__ = (xpos-ICON_SPACING)/ICON_SPACING;
+					row__ = (ypos-ICON_SPACING)/ICON_SPACING;
+				}
+				Icons[col__][row__].file_name = Icons[col__][row__].prev_file_name;
+				Icons[col__][row__].file_name_size = Icons[col__][row__].prev_file_name_size;
+				Icons[col__][row__].name_set = true;
+				save_file();
+				typing = false;
+				draw_screen = false;
+				in_save_as = false;
 			}
-			else if(new_char == 27){
-				// ESC
+			else if(new_char == 27){ // ESC
+				save_as_option = 1;
+				move_button_save_as_bar = false;
+				remove_save_as_screen();
+				in_save_as = false;
+				typing = false;
+				typing_file_name = false;
 			}
 
 			if(!(name_typing_x == 25) && new_char == 8){	
