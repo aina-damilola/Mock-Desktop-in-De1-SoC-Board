@@ -712,7 +712,7 @@ int main(void)
 					
 					//}
 					
-					printf("%d\n", test_x);
+		
 					byte1 = byte2 = byte3 = 0;
 					draw_typing_line(test_x * 4, test_y * 4, 0xffff);
 				}
@@ -762,8 +762,9 @@ int main(void)
 					clear_char_buffer();
 					draw_text_editor();
 					display_file();
+					
 					display_file_name_header();
-
+					
 					in_screen_editor = true;
 					typing = true;
 					draw_screen = false;
@@ -789,7 +790,6 @@ int main(void)
 			if(Icons[(xpos-25)/25][(ypos-25)/25].file_presence == 1){
 				
 				delete_icon(file_icon, xpos, ypos);	
-				//printf("x: %d, y: %d", xpos, ypos);
 				ready_to_delete_file = false;
 
 			}
@@ -1039,11 +1039,6 @@ void save_name_keystroke(char key_press, int new_or_saved){
 	}
 
 	
-	// printf("Row: %d, Col: %d\n", row, col);
-	// for(int i = 0; i < Icons[col][row].text_size; i++){
-	// 	printf("%d ", Icons[col][row].text[i]);
-	// }
-	// printf("\n");
 }
 
 void save_file(){
@@ -1095,18 +1090,25 @@ void display_file_name_header(){
 	x+=1;
 	plot_char(x,y,':');
 	x+=1;
-	
-	//printf("%d\n",Icons[(xpos-25)/25][(ypos-25)/25].file_name_size);
+
 	for(int i = 0; i < Icons[(xpos-ICON_SPACING)/ICON_SPACING][(ypos-ICON_SPACING)/ICON_SPACING].file_name_size; i++){
 		x+=1;
+		if(Icons[(xpos-ICON_SPACING)/ICON_SPACING][(ypos-ICON_SPACING)/ICON_SPACING].file_name[i] == 13){
+			break;
+		}
 		plot_char(x,y,Icons[(xpos-ICON_SPACING)/ICON_SPACING][(ypos-ICON_SPACING)/ICON_SPACING].file_name[i]);
 	}
 }
 
 void file_return(bool save){ // if true, save the file, if false, dont save the file
 	if(save){
+		char * test;
 		Icons[col][row].text_size = Icons[col][row].prev_text_size;
-		Icons[col][row].text = Icons[col][row].prev_text;
+		Icons[col][row].text = (char *)realloc(Icons[col][row].text, Icons[col][row].prev_text_size * sizeof(char));
+		for(int i = 0; i < Icons[col][row].prev_text_size; i++){
+			Icons[col][row].text[i] = Icons[col][row].prev_text[i];
+		}
+		
 
 		if(!Icons[col][row].name_set){
 			if(Icons[col][row].text_size <= 5){
@@ -1132,8 +1134,15 @@ void file_return(bool save){ // if true, save the file, if false, dont save the 
 		
 	}
 	else{
+		
+		
 		Icons[col][row].prev_text_size = Icons[col][row].text_size;
-		Icons[col][row].prev_text = Icons[col][row].text;
+		Icons[col][row].prev_text = (char *)realloc(Icons[col][row].prev_text, Icons[col][row].text_size * sizeof(char));
+		for(int i = 0; i < Icons[col][row].text_size; i++){
+			Icons[col][row].prev_text[i] = Icons[col][row].text[i];
+		}
+	
+		
 	}
 	
 }
@@ -1214,34 +1223,30 @@ void save_keystroke(char key_press, int new_or_saved){
 		Icons[col][row].prev_text_size += 1;
 	}
 
+	for(int i = 0; i < Icons[col][row].text_size; i++){
+		printf("%d ",Icons[col][row].text[i]);
+	}
+	printf("\n");
 	
-	// printf("Row: %d, Col: %d\n", row, col);
-	// for(int i = 0; i < Icons[col][row].text_size; i++){
-	// 	printf("%d ", Icons[col][row].text[i]);
-	// }
-	// printf("\n");
 	
 }
 
 void display_file(){
-	
+	test_x = 6;
+	test_y = 8;
 
 	int col = (xpos-25)/25;
 	int row = (ypos-25)/25;
-	/*
-	printf("Row: %d, Col: %d\n", row, col);
-	for(int i = 0; i < Icons[col][row].text_size; i++){
-		printf("%d ", Icons[col][row].text[i]);
-	}
-	printf("\n");	
-	*/
+
 	for (int i=0; i < Icons[col][row].text_size; i++){
 		plot_char(test_x, test_y, Icons[col][row].text[i]);
+		
 		if(Icons[col][row].text[i] != 13){
-			if(test_x > 60){
-				if(test_y <= 49){
+			if(test_x >= 60){
+				if(test_y < 49){
 					test_x = 6;
 					test_y+=2;
+					
 				}
 				
 			}else{
