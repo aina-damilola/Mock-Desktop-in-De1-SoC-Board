@@ -133,7 +133,7 @@ void save_text_buffer();
 
 void draw_typing_line(int x, int y, short color);
 void restore_typing_line(int x, int y);
-
+void keyboard_ISR();
 /*
 	Global variables
 */
@@ -174,7 +174,7 @@ int highlight_x = 25;
 int highlight_y = 25;
 
 // Mouse variables
-bool OnCpulator = true;
+bool OnCpulator = false;
 
 int printCounter = 0;
 bool IsInTextEditor = false;
@@ -512,6 +512,8 @@ const char text_editor[]  = {
   0x0000,  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 
 };
 
+volatile int *PS2_ptr = (int *)0xff200100;
+
 int main(void)
 {
 	// Initialize files 2d array
@@ -532,19 +534,21 @@ int main(void)
 
 	volatile int *KEY_ptr = (int *)0xff200050;
 	volatile int *PS2_mouse_ptr = (int *)0xff200108;
+	
 	volatile int *PS2_ptr = (int *)0xff200100;
 
 	// Interrupts setup
 	*(KEY_ptr + 2) = 0b0011;	// Enable interrupt for KEYS
-	*(PS2_mouse_ptr + 1) = 0b1;	 // Enable interrupt for PS2
-	NIOS2_WRITE_IENABLE(0x800002); // Enable interrupts for IRQ 1, 23
+	*(PS2_mouse_ptr + 1) = 0b1;	 // Enable interrupt for PS2 mouse
+	*(PS2_ptr + 1) = 0b1; // Enable interrupt for PS2 Keyboard
+	NIOS2_WRITE_IENABLE(0x800082); // Enable interrupts for IRQ 1, 7, 23
 	NIOS2_WRITE_STATUS(1);
 
 	// PS/2 port: IRQ 7
 	// PS/2 port dual: IRQ 23
 
 
-	int PS2_data, RVALID, RAVAIL;
+	
 	
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
     // declare other variables(not shown)
@@ -588,260 +592,7 @@ int main(void)
     while (1)
     {
 
-		PS2_data = *(PS2_ptr);		// read the Data register in the PS/2 port
-		RVALID = PS2_data & 0x8000; // extract the RVALID field
-		//RAVAIL = PS2_data & 0xffff0000; // extract RAVAIL field
-		if (RVALID != 0) {
-			/* shift the next data byte into the display */
-			byte1 = byte2;
-			byte2 = byte3;
-			byte3 = PS2_data & 0xFF;
-		}
-		if ((byte2 == (int)0xAA) && (byte3 == (int)0x00)){
-			// mouse inserted; initialize sending of data
-			*(PS2_ptr) = 0xF4;
-		}	
-		if(byte3 == 0x14 && byte2 !=0xf0 && !ctrl_key){
-			ctrl_key = true;
-		}
-		if((byte3 == 0x12 || byte3 == 0x59) && (byte2 !=0xf0 && !shift_key)){
-			shift_key = true;
-		}
-		if(byte3 == 0x11 && byte2 !=0xf0 && !alt_key){
-			alt_key = true;
-		}
-		if(byte3 == 0x58 && byte2 !=0xf0 && caps_lock_press_ready){
-			caps_lock = !caps_lock;
-			caps_lock_press_ready = false;
-		}
-
-		if(byte2 == 0xf0){
-			if(byte3 == 0x14){
-				ctrl_key = false;
-			}
-			else if(byte3 == 0x12 || byte3 == 0x59){
-				shift_key = false;
-			}
-			else if(byte3 == 0x11){
-				alt_key = false;
-			}
-			else if(byte3 == 0x58){
-				caps_lock_press_ready = true;
-			}
-		}
-
-
-		HEX_PS2(byte1, byte2, byte3);
-		if(!in_screen_editor){
-			if(in_taskbar){
-				move_outline_in_taskbar(byte1, byte2, byte3);
-			}else{
-				
-				move_outline(byte1, byte2, byte3);
-				
-				
-			}
-		}
-
-		// In text editor
-		else if(in_screen_editor && !in_save_as){
-			if(typing){
-				if(byte2 == (int)0xe0 && byte3 == 0x75){
-					draw_square(230, 22, 235, 28);
-					button_posit = 1;
-					typing = false;
-				}
-				
-				// Get the character typed
-				char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
-				
-				if(new_char == 19){
-					save_file();
-					typing = false;
-				}
-				else if(new_char == 27){
-					exit_file();
-				}
-
-				if(!(test_x == 6 && test_y == 8) && new_char == 8){	
-					volatile uint8_t *one_char_address;
-					restore_typing_line(test_x * 4, test_y * 4);
-					if(test_x == 6 && test_y != 8){
-						
-						test_x = 60;
-						test_y -= 2;
-						one_char_address = char_buffer_start + (test_y << 7) + test_x;
-						while(*one_char_address == 0){
-							test_x--;
-							if(test_x < 6){
-								break;
-							}
-							one_char_address = char_buffer_start + (test_y << 7) + test_x;
-						}
-						test_x++;
-					}
-					else{
-						test_x -= 1;
-					}				
-				}
-				if(new_char == 13){
-					restore_typing_line(test_x * 4, test_y * 4);
-				}
-				// Plot the new character
-				if(plot_char(test_x, test_y, new_char)){
-					if(!(!(test_x == 6 && test_y == 8) && new_char == 8) && new_char != 13){
-						restore_typing_line(test_x * 4, test_y * 4);
-					}
-					
-					save_keystroke(new_char, type_of_file);
-
-					if(new_char != 13 && new_char != 8){ // Not Enter && Not BackSpace
-						if(test_x >= 60){
-							if(test_y < 49){
-								test_x = 6;
-								test_y+=2;
-							}
-							
-						}else{
-							// Not backspace
-					
-							test_x += 1;
-							
-						}
-					}
-					
-					//}
-					
 		
-					byte1 = byte2 = byte3 = 0;
-					draw_typing_line(test_x * 4, test_y * 4, 0xffff);
-				}
-				
-				
-			}
-			else{
-				move_button_outline(byte1, byte2, byte3);
-				
-			}
-			
-			
-			
-		}
-
-		if(byte3 == (int)0x5a && byte2 != (int)0xf0 && draw_screen && !in_screen_editor){
-			test_x = 6;
-			test_y = 8;
-			if(in_taskbar){
-				int app_number = (xpos_task-TASKBAR_LEFT_MARGIN)/ICON_SPACING;
-				if(app_number == 0){  // text_editor
-					delete_square_home_screen(xpos, ypos-1, xpos_2,  ypos_2, FILE_ICON_SIDE_LENGTH);
-					clear_char_buffer();
-					//draw_saved_bg_at_old_mouse_pos();
-					
-					draw_text_editor();
-					
-					in_screen_editor = true;
-					typing = true;
-					type_of_file = 1;
-				}
-				draw_screen = false;
-				button_posit = 0;
-			}
-			else if(!in_taskbar){
-				bool continue_ = false;
-			
-				if(Icons[(xpos-ICON_SPACING)/ICON_SPACING][(ypos-ICON_SPACING)/ICON_SPACING].file_presence == 1){
-					continue_ = true;
-			
-				}
-					
-				
-				if(continue_){
-					
-					delete_square_home_screen(xpos, ypos-1, xpos_2,  ypos_2, FILE_ICON_SIDE_LENGTH);
-					clear_char_buffer();
-					draw_text_editor();
-					display_file();
-					
-					display_file_name_header();
-					
-					in_screen_editor = true;
-					typing = true;
-					draw_screen = false;
-
-					type_of_file = 0;
-					button_posit = 0;
-				}
-				
-			}
-			byte1 = byte2 = byte3 = 0;
-		}
-		if(byte2 == (int)0xf0){
-			if(byte3 == (int)0x5a){
-				draw_screen = true;
-			}
-			if(byte3 == 0x66){
-				ready_to_delete_file = true;
-			}
-		}
-
-		if(byte3 == 0x66 && byte2 != 0xf0 && !in_taskbar && ready_to_delete_file && !in_screen_editor){
-			
-			if(Icons[(xpos-25)/25][(ypos-25)/25].file_presence == 1){
-				
-				delete_icon(file_icon, xpos, ypos);	
-				ready_to_delete_file = false;
-
-			}
-		}
-		
-		if (in_save_as){
-			if(typing_file_name){
-				if(byte2 == (int)0xe0 && byte3 == 0x72){
-					save_as_option = 0;
-					typing_file_name = false;
-					move_button_save_as_bar = true;
-					byte1 = byte2 = byte3 = 0;
-					draw_square(102, 125, 120, 133);
-				}
-		
-				// Get the character typed
-				char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
-				
-				if(new_char == 19){
-					//CTRL+S
-				}
-				else if(new_char == 27){
-					// ESC
-				}
-
-				if(!(name_typing_x == 25) && new_char == 8){	
-					name_typing_x -= 1;	
-								
-				}
-
-				// Plot the new character
-				if((name_typing_x - 25 < 8) || new_char == 8){
-					if(plot_char(name_typing_x, name_typing_y, new_char)){
-						save_name_keystroke(new_char, type_of_file);
-						if(new_char != 8){
-							name_typing_x += 1;		
-						}
-						
-						byte1 = byte2 = byte3 = 0;
-					}
-				}
-				
-				
-			}
-			else{
-				
-				
-				move_button_save_as();
-			}
-		}
-		
-
     }
 
 
@@ -851,7 +602,7 @@ int main(void)
 void restore_typing_line(int x, int y){
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-	draw_saved_bg_at_old_mouse_pos();
+	
 	int count = 20000;
 	for(int i = y; i < y + TYPING_LINE_HEIGHT; i++){
 		plot_pixel(x, i, save[count]);
@@ -868,13 +619,12 @@ void restore_typing_line(int x, int y){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);	
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+
 }
 
 void draw_typing_line(int x, int y, short color){
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-	draw_saved_bg_at_old_mouse_pos();
+	
 	int count = 20000;
 	for(int i = y; i < y + TYPING_LINE_HEIGHT; i++){
 		save[count] = save_pixel(x, i);
@@ -890,8 +640,6 @@ void draw_typing_line(int x, int y, short color){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
 }
 
 void move_button_save_as(){
@@ -1223,10 +971,7 @@ void save_keystroke(char key_press, int new_or_saved){
 		Icons[col][row].prev_text_size += 1;
 	}
 
-	for(int i = 0; i < Icons[col][row].text_size; i++){
-		printf("%d ",Icons[col][row].text[i]);
-	}
-	printf("\n");
+
 	
 	
 }
@@ -1419,7 +1164,7 @@ void restore_text_buffer(){
 }
 
 void remove_save_as_screen(){
-	draw_saved_bg_at_old_mouse_pos();
+	
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int x_offset = 85,y_offset = 75, count = 0;
@@ -1451,12 +1196,11 @@ void remove_save_as_screen(){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+
 }
 
 void display_save_as_screen(){
-	draw_saved_bg_at_old_mouse_pos();
+	
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int x_offset = 85,y_offset = 75, count = 0;
 	int border_width = 2;
@@ -1499,12 +1243,11 @@ void display_save_as_screen(){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+
 }
 
 void draw_text_editor(){
-	draw_saved_bg_at_old_mouse_pos();
+	
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
@@ -1568,13 +1311,12 @@ void draw_text_editor(){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+
 }
 
 void delete_text_editor(){
 	// remove_old_mouse();
-	draw_saved_bg_at_old_mouse_pos();
+	
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
@@ -1596,8 +1338,7 @@ void delete_text_editor(){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+
 }
 
 short int save_pixel(int x, int y){
@@ -1772,7 +1513,7 @@ void move_outline_in_taskbar(int b1, int b2, int b3){
 
 void delete_square(int xpos, int ypos, int xpos_2, int ypos_2, int color){
 	// remove_old_mouse();
-	draw_saved_bg_at_old_mouse_pos();
+	
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = xpos + (320*ypos);
@@ -1799,13 +1540,11 @@ void delete_square(int xpos, int ypos, int xpos_2, int ypos_2, int color){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
 }
 
 void delete_square_home_screen(int xpos, int ypos, int xpos_2, int ypos_2, int spacing){
 	// remove_old_mouse();
-	draw_saved_bg_at_old_mouse_pos();
+	
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = xpos + (320*ypos);
@@ -1832,13 +1571,12 @@ void delete_square_home_screen(int xpos, int ypos, int xpos_2, int ypos_2, int s
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+
 }
 
 void draw_square(int xpos, int ypos, int xpos_2, int ypos_2){
 	// remove_old_mouse();
-	draw_saved_bg_at_old_mouse_pos();
+	
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	for(int x = xpos; x < xpos_2; x++){
@@ -1864,13 +1602,12 @@ void draw_square(int xpos, int ypos, int xpos_2, int ypos_2){
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+	
 }
 
 void draw_icon(short int image[]){
 	// remove_old_mouse();
-	draw_saved_bg_at_old_mouse_pos();
+	
 
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = 0;
@@ -1940,14 +1677,13 @@ void draw_icon(short int image[]){
 	
 	//check = !check;
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+	
 }
 
 void delete_icon(short int image[], int _x, int _y)
 {
 	// remove_old_mouse();
-	draw_saved_bg_at_old_mouse_pos();
+	
 
 	volatile int *pixel_ctrl_ptr = (int *)0xFF203020;
 	int count = _x + (SCREEN_WIDTH*_y);
@@ -1995,8 +1731,7 @@ void delete_icon(short int image[], int _x, int _y)
 	wait_for_vsync();
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-	save_bg_at_new_mouse_pos(); //
-	draw_cursor(0, 0, 0);
+	
 }
 
 void draw()
@@ -2087,7 +1822,7 @@ void interrupt_handler(void)
 
 			// if left mouse button is clicked
 			if (inter_byte1 & 0x1){
-
+                draw_saved_bg_at_old_mouse_pos();
 				if(in_save_as){		// In save as screen
 					if(mouse_y > 125 && mouse_y < 133){
 						if(mouse_x > 102 && mouse_x < 120){ // SAVE Button
@@ -2189,10 +1924,280 @@ void interrupt_handler(void)
 						}
 					}
 				}
+                save_bg_at_new_mouse_pos(); //
+	            draw_cursor(0, 0, 0);
 			}
+            
 		}
+        
+        
+	}
+	else if(ipending & 0x80){
+        draw_saved_bg_at_old_mouse_pos();
+		
+        keyboard_ISR();
+
+        save_bg_at_new_mouse_pos(); //
+	    draw_cursor(0, 0, 0);
 	}
 	// else, ignore the interrupt
+}
+
+void keyboard_ISR(){
+	int PS2_data, RVALID, RAVAIL;
+	PS2_data = *(PS2_ptr);		// read the Data register in the PS/2 port
+	RVALID = PS2_data & 0x8000; // extract the RVALID field
+	//RAVAIL = PS2_data & 0xffff0000; // extract RAVAIL field
+	if (RVALID != 0) {
+		/* shift the next data byte into the display */
+		byte1 = byte2;
+		byte2 = byte3;
+		byte3 = PS2_data & 0xFF;
+	}
+	if ((byte2 == (int)0xAA) && (byte3 == (int)0x00)){
+		// mouse inserted; initialize sending of data
+		*(PS2_ptr) = 0xF4;
+	}	
+	if(byte3 == 0x14 && byte2 !=0xf0 && !ctrl_key){
+		ctrl_key = true;
+	}
+	if((byte3 == 0x12 || byte3 == 0x59) && (byte2 !=0xf0 && !shift_key)){
+		shift_key = true;
+	}
+	if(byte3 == 0x11 && byte2 !=0xf0 && !alt_key){
+		alt_key = true;
+	}
+	if(byte3 == 0x58 && byte2 !=0xf0 && caps_lock_press_ready){
+		caps_lock = !caps_lock;
+		caps_lock_press_ready = false;
+	}
+
+	if(byte2 == 0xf0){
+		if(byte3 == 0x14){
+			ctrl_key = false;
+		}
+		else if(byte3 == 0x12 || byte3 == 0x59){
+			shift_key = false;
+		}
+		else if(byte3 == 0x11){
+			alt_key = false;
+		}
+		else if(byte3 == 0x58){
+			caps_lock_press_ready = true;
+		}
+	}
+
+
+	HEX_PS2(byte1, byte2, byte3);
+	if(!in_screen_editor){
+		if(in_taskbar){
+			move_outline_in_taskbar(byte1, byte2, byte3);
+		}else{
+			
+			move_outline(byte1, byte2, byte3);
+			
+			
+		}
+	}
+
+	// In text editor
+	else if(in_screen_editor && !in_save_as){
+		if(typing){
+			if(byte2 == (int)0xe0 && byte3 == 0x75){
+				draw_square(230, 22, 235, 28);
+				button_posit = 1;
+				typing = false;
+			}
+			
+			// Get the character typed
+			char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
+			
+			if(new_char == 19){
+				save_file();
+				typing = false;
+			}
+			else if(new_char == 27){
+				exit_file();
+			}
+
+			if(!(test_x == 6 && test_y == 8) && new_char == 8){	
+				volatile uint8_t *one_char_address;
+				restore_typing_line(test_x * 4, test_y * 4);
+				if(test_x == 6 && test_y != 8){
+					
+					test_x = 60;
+					test_y -= 2;
+					one_char_address = char_buffer_start + (test_y << 7) + test_x;
+					while(*one_char_address == 0){
+						test_x--;
+						if(test_x < 6){
+							break;
+						}
+						one_char_address = char_buffer_start + (test_y << 7) + test_x;
+					}
+					test_x++;
+				}
+				else{
+					test_x -= 1;
+				}				
+			}
+			if(new_char == 13){
+				restore_typing_line(test_x * 4, test_y * 4);
+			}
+			// Plot the new character
+			if(plot_char(test_x, test_y, new_char)){
+				if(!(!(test_x == 6 && test_y == 8) && new_char == 8) && new_char != 13){
+					restore_typing_line(test_x * 4, test_y * 4);
+				}
+				
+				save_keystroke(new_char, type_of_file);
+
+				if(new_char != 13 && new_char != 8){ // Not Enter && Not BackSpace
+					if(test_x >= 60){
+						if(test_y < 49){
+							test_x = 6;
+							test_y+=2;
+						}
+						
+					}else{
+						// Not backspace
+				
+						test_x += 1;
+						
+					}
+				}
+				
+				//}
+				
+	
+				byte1 = byte2 = byte3 = 0;
+				draw_typing_line(test_x * 4, test_y * 4, 0xffff);
+			}
+			
+			
+		}
+		else{
+			move_button_outline(byte1, byte2, byte3);
+			
+		}
+		
+		
+		
+	}
+
+	if(byte3 == (int)0x5a && byte2 != (int)0xf0 && draw_screen && !in_screen_editor){
+		test_x = 6;
+		test_y = 8;
+		if(in_taskbar){
+			int app_number = (xpos_task-TASKBAR_LEFT_MARGIN)/ICON_SPACING;
+			if(app_number == 0){  // text_editor
+				delete_square_home_screen(xpos, ypos-1, xpos_2,  ypos_2, FILE_ICON_SIDE_LENGTH);
+				clear_char_buffer();
+				//
+				
+				draw_text_editor();
+				
+				in_screen_editor = true;
+				typing = true;
+				type_of_file = 1;
+			}
+			draw_screen = false;
+			button_posit = 0;
+		}
+		else if(!in_taskbar){
+			bool continue_ = false;
+		
+			if(Icons[(xpos-ICON_SPACING)/ICON_SPACING][(ypos-ICON_SPACING)/ICON_SPACING].file_presence == 1){
+				continue_ = true;
+		
+			}
+				
+			
+			if(continue_){
+				
+				delete_square_home_screen(xpos, ypos-1, xpos_2,  ypos_2, FILE_ICON_SIDE_LENGTH);
+				clear_char_buffer();
+				draw_text_editor();
+				display_file();
+				
+				display_file_name_header();
+				
+				in_screen_editor = true;
+				typing = true;
+				draw_screen = false;
+
+				type_of_file = 0;
+				button_posit = 0;
+			}
+			
+		}
+		byte1 = byte2 = byte3 = 0;
+	}
+	if(byte2 == (int)0xf0){
+		if(byte3 == (int)0x5a){
+			draw_screen = true;
+		}
+		if(byte3 == 0x66){
+			ready_to_delete_file = true;
+		}
+	}
+
+	if(byte3 == 0x66 && byte2 != 0xf0 && !in_taskbar && ready_to_delete_file && !in_screen_editor){
+		
+		if(Icons[(xpos-25)/25][(ypos-25)/25].file_presence == 1){
+			
+			delete_icon(file_icon, xpos, ypos);	
+			ready_to_delete_file = false;
+
+		}
+	}
+	
+	if (in_save_as){
+		if(typing_file_name){
+			if(byte2 == (int)0xe0 && byte3 == 0x72){
+				save_as_option = 0;
+				typing_file_name = false;
+				move_button_save_as_bar = true;
+				byte1 = byte2 = byte3 = 0;
+				draw_square(102, 125, 120, 133);
+			}
+	
+			// Get the character typed
+			char new_char = Scancodes_to_ASCII_code(byte1, byte2, byte3);
+			
+			if(new_char == 19){
+				//CTRL+S
+			}
+			else if(new_char == 27){
+				// ESC
+			}
+
+			if(!(name_typing_x == 25) && new_char == 8){	
+				name_typing_x -= 1;	
+							
+			}
+
+			// Plot the new character
+			if((name_typing_x - 25 < 8) || new_char == 8){
+				if(plot_char(name_typing_x, name_typing_y, new_char)){
+					save_name_keystroke(new_char, type_of_file);
+					if(new_char != 8){
+						name_typing_x += 1;		
+					}
+					
+					byte1 = byte2 = byte3 = 0;
+				}
+			}
+			
+			
+		}
+		else{
+			
+			
+			move_button_save_as();
+		}
+	}
+	
 }
 
 void pushbutton_ISR(void){
@@ -2380,7 +2385,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 				case 0x4e:	ASCII_code = 95; ready_for_next_character = false; break;	// _
 				case 0x55:	ASCII_code = 43; ready_for_next_character = false; break;	// +
 				case 0x54:	ASCII_code =123; ready_for_next_character = false; break;	// {
-				case 0x56:	ASCII_code =125; ready_for_next_character = false; break;	// }
+				case 0x5b:	ASCII_code =125; ready_for_next_character = false; break;	// }
 				case 0x5d:	ASCII_code =124; ready_for_next_character = false; break;	// |
 				case 0x4c:	ASCII_code = 58; ready_for_next_character = false; break;	// :
 				case 0x52:	ASCII_code = 34; ready_for_next_character = false; break;	// "
@@ -2405,7 +2410,7 @@ uint8_t Scancodes_to_ASCII_code(int b1, int b2, int b3){
 				case 0x4e:	ASCII_code = 45; ready_for_next_character = false; break;	// -
 				case 0x55:	ASCII_code = 61; ready_for_next_character = false; break;	// =
 				case 0x54:	ASCII_code = 91; ready_for_next_character = false; break;	// [
-				case 0x56:	ASCII_code = 93; ready_for_next_character = false; break;	// ]
+				case 0x5b:	ASCII_code = 93; ready_for_next_character = false; break;	// ]
 				case 0x5d:	ASCII_code = 92; ready_for_next_character = false; break;	// '\'
 				case 0x4c:	ASCII_code = 59; ready_for_next_character = false; break;	// ;
 				case 0x52:	ASCII_code = 39; ready_for_next_character = false; break;	// '
