@@ -988,7 +988,7 @@ void display_file(){
 		
 		if(Icons[col][row].text[i] != 13){
 			if(test_x >= 60){
-				if(test_y < 49){
+				if(test_y < 48){
 					test_x = 6;
 					test_y+=2;
 					
@@ -2054,7 +2054,7 @@ void keyboard_ISR(){
 
 				if(new_char != 13 && new_char != 8){ // Not Enter && Not BackSpace
 					if(test_x >= 60){
-						if(test_y < 49){
+						if(test_y < 48){
 							test_x = 6;
 							test_y+=2;
 						}
@@ -2242,9 +2242,12 @@ bool plot_char(int x, int y, uint8_t letter){
 	if(letter == 0 || letter == 19 || letter == 27 || (letter == 32 && in_save_as)){
 		return false;
 	}
-	if(letter == 13 && !in_save_as){
-		test_y += 2;
-		test_x = 6;
+	if(letter == 13 && !in_save_as && test_y <= 48){
+		if(test_y != 48){
+			test_y += 2;
+			test_x = 6;
+		}
+		
 		return true;
 	}
 	else if(letter == 13 && in_save_as){
@@ -2594,24 +2597,17 @@ void draw_cursor(int misc, int xpos, int ypos){
 	// If mouse moved out of bounds, take the boundary coordinate
     if (mouse_x > cursor_max_x){
 		mouse_x = cursor_max_x;
-		hit_boundary = true;
 	} else if (mouse_x < 0){
 		mouse_x = 0;
-		hit_boundary = true;
 	}
 
 	if (mouse_y > cursor_max_y){
 		mouse_y = cursor_max_y;
-		hit_boundary = true;
+
 	} else if (mouse_y < 0 ){
 		mouse_y = 0;
-		hit_boundary = true;
 	}
 
-	
-	if (hit_boundary){
-		return;
-	}
 
 	// remove_old_mouse();
 	draw_saved_bg_at_old_mouse_pos(); // remove mouse 
