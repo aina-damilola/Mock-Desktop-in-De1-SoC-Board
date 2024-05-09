@@ -7,9 +7,9 @@ ASSIGNMENT:
 To create a program that properly demonstrated the knowledge we gained throughout the course.
 We were given a high degree of freedom as to what our end goal would look like and with that, we 
 created a mock desktop with a basic file system.
-
-
-
+<br />
+<br />
+<br />  
 **OUR PROJECT'S FUNCTIONALITIES**
 
 Our Desktop & Text Editor project allows for creating, editing, saving, and viewing text files, 
@@ -34,9 +34,11 @@ There are 3 ways to save a text file:
 - Using the CTRL+S shortcut (Only functional while the selector is not hovering a text editor button i.e red, green, or blue)
 - Clicking the blue button with the mouse or navigating the white box to the blue button and clicking enter (the blue button is equivalent to “Save as”)
 
-  *Using the Green button* saves the changes made to a file and sets the file name as the first 5 characters of the first line as long as the file has not been previously "saved as" 
+  *Using the Green button* saves the changes made to a file and sets the file name as the first 5 characters of the first line as long as the file has not been previously "saved as"
+  
   *Using the Blue button* sets the name of the file to a maximum of 8 characters, chosen by the user, navigating the “Save” and “Cancel” buttons by either mouse or using the down arrow     and left right arrow to navigate
-  *CTRL+S and ESC* can be used in this window, corresponding to Save and Cancel respectively 
+  
+  *CTRL+S and ESC* can be used in this window, corresponding to Save and Cancel respectively  
 
   *Using the Red button* removes any changes from the file and exits the file (if a new file, it doesn't create a file)
 
@@ -47,9 +49,9 @@ Hovering over a file and pressing Backspace would delete the file permanently.
 To prevent the outline from ever being stuck, the arrow keys wrap (It moves to the next slot with a file present rather than hovering over an empty slot) 
 horizontally while increasing or decreasing in y-level and wrap around vertically only in the upwards direction as the downwards 
 direction takes the user straight to the taskbar rather than wrapping around 
-
-
-
+<br />
+<br />
+<br />  
 **TO DEMO THIS CODE**
 
 Download the file main.c
